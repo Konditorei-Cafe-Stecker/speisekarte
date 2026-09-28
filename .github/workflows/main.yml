@@ -13,7 +13,7 @@ jobs:
 
       - name: Download QR Code
         run: |
-          curl -L -o menu-qr.png "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://stecker-konditorei.github.io/speisekarte/"
+          curl -L -o menu-qr.png "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://Konditorei-Cafe-Stecker.github.io/speisekarte/"
 
       - name: Commit and Push QR code
         run: |

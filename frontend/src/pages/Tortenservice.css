@@ -1,0 +1,90 @@
+.tortenservice {
+  padding: 120px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.tortenservice-header {
+  max-width: 900px;
+  margin: 0 auto 80px;
+  text-align: center;
+}
+
+.tortenservice-eyebrow {
+  margin: 0 0 24px;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  color: #777;
+}
+
+.tortenservice-header h1 {
+  margin: 0 0 28px;
+  font-size: clamp(3rem, 6vw, 5.5rem);
+  line-height: 1;
+  font-weight: 500;
+}
+
+.tortenservice-description {
+  margin: 0 auto;
+  max-width: 800px;
+  font-size: 1.2rem;
+  line-height: 1.7;
+  color: #777;
+}
+
+.tortenservice-content {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.tortenservice-content h2 {
+  margin: 0 0 20px;
+  font-size: 2rem;
+  font-weight: 500;
+}
+
+.tortenservice-content p {
+  max-width: 800px;
+  margin: 0 auto 32px;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: #777;
+}
+
+.tortenservice-content button {
+  border: 1px solid #111;
+  background: transparent;
+  color: #111;
+  padding: 14px 24px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tortenservice-content button:hover {
+  background: #111;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .tortenservice {
+    padding: 80px 24px;
+  }
+
+  .tortenservice-header {
+    margin-bottom: 60px;
+  }
+
+  .tortenservice-header h1 {
+    font-size: clamp(2.8rem, 11vw, 4rem);
+  }
+
+  .tortenservice-description {
+    font-size: 1rem;
+  }
+
+  .tortenservice-content h2 {
+    font-size: 1.7rem;
+  }
+}

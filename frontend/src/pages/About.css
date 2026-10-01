@@ -1,0 +1,33 @@
+.about {
+  padding: 140px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.about-content {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.about-eyebrow {
+  margin: 0 0 24px;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  color: #777;
+}
+
+.about h1 {
+  margin: 0 0 32px;
+  font-size: clamp(3rem, 7vw, 6rem);
+  line-height: 0.95;
+  font-weight: 500;
+}
+
+.about-description {
+  max-width: 750px;
+  margin: 0 auto 20px;
+  font-size: 1.15rem;
+  line-height: 1.7;
+  color: #777;
+}

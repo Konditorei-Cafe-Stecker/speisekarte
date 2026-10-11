@@ -1,3 +1,4 @@
+
 .tortenservice {
   padding: 120px 40px;
   max-width: 1200px;
@@ -67,6 +68,135 @@
   color: white;
 }
 
+/* Inquiry section */
+
+.tortenanfrage {
+  max-width: 760px;
+  margin: 80px auto 0;
+  padding-top: 48px;
+  scroll-margin-top: 40px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.tortenanfrage-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.tortenanfrage-header h2 {
+  margin: 0 0 16px;
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+.tortenanfrage-header > p:last-child {
+  margin: 0;
+  color: #777;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.tortenanfrage-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.form-group label {
+  font-size: 0.95rem;
+  color: #222;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid #d5d5d5;
+  border-radius: 0;
+  background: #fff;
+  color: #111;
+  font: inherit;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.form-group input,
+.form-group select {
+  min-height: 50px;
+}
+
+.form-group textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #999;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #111;
+}
+
+.form-group input:focus-visible,
+.form-group select:focus-visible,
+.form-group textarea:focus-visible {
+  outline: 2px solid #777;
+  outline-offset: 3px;
+}
+
+.form-note {
+  margin: 0;
+  color: #777;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.tortenanfrage-submit {
+  align-self: flex-start;
+  padding: 15px 26px;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.tortenanfrage-submit:hover {
+  background: #fff;
+  color: #111;
+}
+
+.tortenanfrage-submit:focus-visible,
+.tortenservice-content button:focus-visible {
+  outline: 2px solid #777;
+  outline-offset: 4px;
+}
+
 @media (max-width: 768px) {
   .tortenservice {
     padding: 80px 24px;
@@ -87,4 +217,49 @@
   .tortenservice-content h2 {
     font-size: 1.7rem;
   }
+
+  .tortenanfrage {
+    margin-top: 80px;
+    padding-top: 48px;
+  }
+
+  .tortenanfrage-header {
+    margin-bottom: 36px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .tortenanfrage-submit {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .tortenservice {
+    padding: 64px 18px;
+  }
+
+  .tortenservice-header h1 {
+    font-size: 2.6rem;
+  }
+
+  .tortenanfrage-header h2 {
+    font-size: 1.8rem;
+  }
+
+
+  .form-success {
+   margin: 0;
+   padding: 24px;
+   border: 1px solid #d5d5d5;
+   background: #fafaf8;
+   color: #333;
+   font-size: 1rem;
+   line-height: 1.7;
+   text-align: left;
+  }
+
 }

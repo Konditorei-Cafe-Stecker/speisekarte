@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import './AboutPreview.css'
 
 function AboutPreview() {
@@ -17,9 +18,9 @@ function AboutPreview() {
           Konditorhandwerk mit hochwertigen Zutaten und viel Liebe zum Detail.
         </p>
 
-        <a href="/about" className="about-preview-link">
+        <Link to="/about" className="about-preview-link">
           Mehr über uns →
-        </a>
+        </Link>
       </div>
     </section>
   )

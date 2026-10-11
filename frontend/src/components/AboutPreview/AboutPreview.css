@@ -1,9 +1,11 @@
+
 .about-preview {
-  padding: 140px 40px;
-  background: #f5f2ed;
+  padding: 120px 40px;
+  background: var(--surface);
 }
 
 .about-preview-content {
+  width: 100%;
   max-width: 1000px;
   margin: 0 auto;
 }
@@ -11,35 +13,112 @@
 .about-preview-eyebrow {
   margin: 0 0 20px;
   font-size: 0.75rem;
+  line-height: 1.6;
   letter-spacing: 0.2em;
-  color: #777;
+  color: var(--text);
 }
 
 .about-preview h2 {
-  margin: 0 0 30px;
   max-width: 800px;
+  margin: 0 0 30px;
   font-size: clamp(2.5rem, 6vw, 5rem);
-  line-height: 1;
-  font-weight: 500;
+  line-height: 1.08;
+  font-weight: 400;
+  color: var(--text-h);
 }
 
 .about-preview-description {
   max-width: 600px;
-  margin: 0 0 35px;
+  margin: 0 0 32px;
   font-size: 1.1rem;
   line-height: 1.7;
-  color: #666;
+  color: var(--text);
 }
 
 .about-preview-link {
   display: inline-block;
-  color: #111;
-  text-decoration: none;
-  border-bottom: 1px solid #111;
   padding-bottom: 5px;
-  transition: opacity 0.3s ease;
+  border-bottom: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition:
+    color 0.25s ease,
+    border-color 0.25s ease;
 }
 
 .about-preview-link:hover {
-  opacity: 0.6;
+  color: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
+
+.about-preview-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 5px;
+}
+
+/* Tablet */
+@media (max-width: 768px) {
+  .about-preview {
+    padding: 88px 32px;
+  }
+
+  .about-preview h2 {
+    font-size: clamp(2.4rem, 6vw, 3.8rem);
+  }
+
+  .about-preview-description {
+    font-size: 1.05rem;
+  }
+}
+
+/* Mobile */
+@media (max-width: 520px) {
+  .about-preview {
+    padding: 64px 20px;
+  }
+
+  .about-preview-eyebrow {
+    margin-bottom: 16px;
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+  }
+
+  .about-preview h2 {
+    margin-bottom: 22px;
+    font-size: clamp(2.1rem, 8vw, 2.8rem);
+    line-height: 1.12;
+  }
+
+  .about-preview-description {
+    margin-bottom: 26px;
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .about-preview-link {
+    transition: none;
+  }
+}
+
+
+
+
+@media (max-width: 768px) {
+  .about h1 {
+    width: 100%;
+    max-width: 100%;
+    font-size: clamp(2rem, 6.5vw, 2.8rem);
+    line-height: 1.1;
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: auto;
+    box-sizing: border-box;
+  }
+}
+
+
+

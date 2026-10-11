@@ -1,13 +1,17 @@
+
 .about {
   padding: 140px 40px;
   max-width: 1200px;
   margin: 0 auto;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .about-content {
   max-width: 900px;
   margin: 0 auto;
   text-align: center;
+  width: 100%;
 }
 
 .about-eyebrow {
@@ -22,6 +26,9 @@
   font-size: clamp(3rem, 7vw, 6rem);
   line-height: 0.95;
   font-weight: 500;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .about-description {
@@ -30,4 +37,37 @@
   font-size: 1.15rem;
   line-height: 1.7;
   color: #777;
+}
+
+@media (max-width: 768px) {
+  .about {
+    padding: 90px 24px;
+  }
+
+  .about-eyebrow {
+    margin-bottom: 20px;
+    font-size: 0.75rem;
+  }
+
+  .about h1 {
+    font-size: clamp(2.2rem, 7.5vw, 3.2rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    margin-bottom: 28px;
+  }
+
+  .about-description {
+    font-size: 1.05rem;
+    line-height: 1.7;
+  }
+}
+
+@media (max-width: 390px) {
+  .about {
+    padding: 72px 20px;
+  }
+
+  .about h1 {
+    font-size: 2.15rem;
+  }
 }

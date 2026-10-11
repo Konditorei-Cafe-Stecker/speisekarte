@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar/Navbar'
 
@@ -11,12 +12,14 @@ function App() {
     <BrowserRouter>
       <Navbar />
 
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/menu" element={<Menu />} />
-        <Route path="/tortenservice" element={<Tortenservice />} />
-        <Route path="/about" element={<About />} />
-      </Routes>
+      <main>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/menu" element={<Menu />} />
+          <Route path="/tortenservice" element={<Tortenservice />} />
+          <Route path="/about" element={<About />} />
+        </Routes>
+      </main>
     </BrowserRouter>
   )
 }

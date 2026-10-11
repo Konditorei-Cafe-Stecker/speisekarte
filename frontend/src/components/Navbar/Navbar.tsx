@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import './Navbar.css'
@@ -10,21 +11,27 @@ function Navbar() {
   }
 
   return (
-    <nav className="navbar">
-      <div className="navbar-logo">
-        Stecker Konditorei
-      </div>
+    <nav className="navbar" aria-label="Hauptnavigation">
+      <NavLink to="/" className="navbar-logo" onClick={closeMenu}>
+        Stecker <span>Konditorei</span>
+      </NavLink>
 
       <button
+        type="button"
         className="navbar-toggle"
         onClick={() => setMenuOpen(!menuOpen)}
-        aria-label="Menü öffnen"
+        aria-label={menuOpen ? 'Menü schließen' : 'Menü öffnen'}
+        aria-expanded={menuOpen}
+        aria-controls="navbar-links"
       >
         {menuOpen ? '✕' : '☰'}
       </button>
 
-      <div className={`navbar-links ${menuOpen ? 'open' : ''}`}>
-        <NavLink to="/" onClick={closeMenu}>
+      <div
+        id="navbar-links"
+        className={`navbar-links ${menuOpen ? 'open' : ''}`}
+      >
+        <NavLink to="/" end onClick={closeMenu}>
           Home
         </NavLink>
 

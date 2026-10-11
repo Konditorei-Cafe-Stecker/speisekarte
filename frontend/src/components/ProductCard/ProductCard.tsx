@@ -1,3 +1,4 @@
+
 import './ProductCard.css'
 
 type ProductCardProps = {
@@ -17,18 +18,22 @@ function ProductCard({
 }: ProductCardProps) {
   return (
     <article className="product-card">
-      <div className="product-card-image">
+      <div
+        className={`product-card-image ${image ? 'has-image' : 'no-image'}`}
+      >
         {image ? (
           <img src={image} alt={imageAlt ?? name} />
         ) : (
-          <span>Image</span>
+          <span className="product-card-placeholder" aria-hidden="true">
+            {name}
+          </span>
         )}
       </div>
 
       <div className="product-card-content">
         <h3>{name}</h3>
         <p>{description}</p>
-        <span>{price}</span>
+        <span className="product-card-price">{price}</span>
       </div>
     </article>
   )

@@ -101,3 +101,104 @@
     gap: 40px;
   }
 }
+.menu {
+  padding-bottom: 220px;
+}
+
+.menu-subcategory + .menu-subcategory {
+  margin-top: 56px;
+}
+
+.menu-subcategory > h3 {
+  margin: 0 0 24px;
+  font-size: 1.5rem;
+  color: var(--text-h);
+}
+
+.menu-summary {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  width: min(1120px, calc(100% - 40px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgba(48, 39, 34, 0.12);
+}
+
+.menu-summary p:first-child {
+  font-size: 0.9rem;
+}
+
+.menu-summary p:last-child {
+  color: var(--text-h);
+}
+
+.menu-summary output {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.menu-summary button,
+.menu > [role='alert'] button {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.menu-summary button:hover:not(:disabled),
+.menu > [role='alert'] button:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+.menu-summary button:focus-visible,
+.menu > [role='alert'] button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.menu-summary button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.menu > p,
+.menu > [role='alert'] {
+  text-align: center;
+}
+
+.menu > [role='alert'] button {
+  margin-top: 16px;
+}
+
+@media (max-width: 520px) {
+  .menu-summary {
+    bottom: 12px;
+    width: calc(100% - 24px);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .menu-summary > div {
+    text-align: center;
+  }
+
+  .menu-subcategory + .menu-subcategory {
+    margin-top: 40px;
+  }
+}

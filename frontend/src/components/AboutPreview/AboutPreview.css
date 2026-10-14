@@ -1,99 +1,155 @@
 
 .about-preview {
-  padding: 120px 40px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  min-height: 599px;
+  padding: 52px clamp(20px, 3vw, 72px);
+  overflow: hidden;
+  box-sizing: border-box;
   background: var(--surface);
 }
 
-.about-preview-content {
+/* Full-width story photograph */
+.about-preview-image {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.about-preview-image img {
+  display: block;
   width: 100%;
-  max-width: 1000px;
-  margin: 0 auto;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Cream text panel */
+.about-preview-content {
+  position: relative;
+  z-index: 1;
+  width: 692px;
+  max-width: 100%;
+  padding: 28px 36px 34px 44px;
+  border: 1px solid rgba(230, 221, 210, 0.85);
+  border-radius: 10px;
+  background: rgba(251, 248, 243, 0.96);
+  box-shadow: 0 6px 18px rgba(46, 36, 28, 0.1);
+  box-sizing: border-box;
 }
 
 .about-preview-eyebrow {
-  margin: 0 0 20px;
-  font-size: 0.75rem;
+  margin: 0 0 24px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1.6;
-  letter-spacing: 0.2em;
-  color: var(--text);
+  letter-spacing: 1.5px;
 }
 
 .about-preview h2 {
-  max-width: 800px;
-  margin: 0 0 30px;
-  font-size: clamp(2.5rem, 6vw, 5rem);
-  line-height: 1.08;
-  font-weight: 400;
+  margin: 0 0 20px;
   color: var(--text-h);
+  font-family: var(--heading);
+  font-size: 38px;
+  font-weight: 400;
+  line-height: 1.25;
 }
 
 .about-preview-description {
-  max-width: 600px;
-  margin: 0 0 32px;
-  font-size: 1.1rem;
-  line-height: 1.7;
+  max-width: 590px;
+  margin: 0 0 30px;
   color: var(--text);
+  font-size: 17px;
+  line-height: 27px;
 }
 
 .about-preview-link {
-  display: inline-block;
-  padding-bottom: 5px;
-  border-bottom: 1px solid var(--accent);
-  color: var(--accent);
-  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 12px 20px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
   text-decoration: none;
   transition:
-    color 0.25s ease,
-    border-color 0.25s ease;
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .about-preview-link:hover {
-  color: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+  transform: translateY(-2px);
 }
 
 .about-preview-link:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 5px;
+  outline-offset: 4px;
 }
 
 /* Tablet */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .about-preview {
-    padding: 88px 32px;
+    min-height: 540px;
+    padding: 40px 32px;
+  }
+
+  .about-preview-content {
+    width: 600px;
+    padding: 32px;
   }
 
   .about-preview h2 {
-    font-size: clamp(2.4rem, 6vw, 3.8rem);
+    font-size: 34px;
   }
 
   .about-preview-description {
-    font-size: 1.05rem;
+    font-size: 16px;
+    line-height: 1.7;
   }
 }
 
 /* Mobile */
-@media (max-width: 520px) {
+@media (max-width: 600px) {
   .about-preview {
-    padding: 64px 20px;
+    min-height: 520px;
+    justify-content: center;
+    padding: 28px 20px;
+  }
+
+  .about-preview-image img {
+    object-position: center;
+  }
+
+  .about-preview-content {
+    width: 100%;
+    padding: 26px 22px;
   }
 
   .about-preview-eyebrow {
-    margin-bottom: 16px;
-    font-size: 0.7rem;
-    letter-spacing: 0.16em;
+    margin-bottom: 18px;
+    font-size: 11px;
   }
 
   .about-preview h2 {
-    margin-bottom: 22px;
-    font-size: clamp(2.1rem, 8vw, 2.8rem);
-    line-height: 1.12;
+    margin-bottom: 16px;
+    font-size: 30px;
+    line-height: 1.2;
   }
 
   .about-preview-description {
-    margin-bottom: 26px;
-    font-size: 1rem;
-    line-height: 1.65;
+    margin-bottom: 24px;
+    font-size: 15px;
+    line-height: 1.7;
   }
 }
 
@@ -102,23 +158,8 @@
   .about-preview-link {
     transition: none;
   }
-}
 
-
-
-
-@media (max-width: 768px) {
-  .about h1 {
-    width: 100%;
-    max-width: 100%;
-    font-size: clamp(2rem, 6.5vw, 2.8rem);
-    line-height: 1.1;
-    overflow-wrap: break-word;
-    word-break: normal;
-    hyphens: auto;
-    box-sizing: border-box;
+  .about-preview-link:hover {
+    transform: none;
   }
 }
-
-
-

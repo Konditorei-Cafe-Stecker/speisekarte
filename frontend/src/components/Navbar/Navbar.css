@@ -1,44 +1,76 @@
 
-.navbar {
+/* Header surrounding the floating navigation */
+.site-header {
   position: relative;
   z-index: 100;
   width: 100%;
-  padding: 24px clamp(24px, 5vw, 72px);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 32px;
   background: var(--bg);
-  border-bottom: 1px solid var(--border);
 }
 
+.navbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  width: 100%;
+  min-height: 122px;
+  padding: 22px clamp(24px, 5vw, 72px);
+  box-sizing: border-box;
+}
+
+/* Real Stecker logo from Figma */
 .navbar-logo {
-  flex-shrink: 0;
-  color: var(--text-h);
-  font-family: var(--heading);
-  font-size: 1.65rem;
-  font-weight: 400;
-  letter-spacing: -0.03em;
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  min-width: 0;
   text-decoration: none;
 }
 
-.navbar-logo span {
-  color: var(--accent);
+.navbar-logo img {
+  display: block;
+  width: 230px;
+  max-width: 100%;
+  max-height: 76px;
+  height: auto;
+  object-fit: contain;
+  object-position: left center;
 }
 
+.navbar-logo:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 5px;
+  border-radius: 4px;
+}
+
+/* Floating cream pill */
 .navbar-links {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: clamp(20px, 3vw, 36px);
+  justify-content: center;
+  gap: clamp(18px, 2vw, 30px);
+  padding: 16px 28px;
+  border: 1px solid rgba(232, 221, 210, 0.75);
+  border-radius: 999px;
+  background: #fffcf7;
+  box-shadow: 0 5px 18px rgba(48, 34, 39, 0.1);
 }
 
 .navbar-links a {
   position: relative;
-  padding: 8px 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 5px 0;
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
   text-decoration: none;
-  transition: color 0.25s ease;
+  white-space: nowrap;
+  transition: color 0.2s ease;
 }
 
 .navbar-links a:hover,
@@ -46,68 +78,116 @@
   color: var(--accent);
 }
 
+/* Fine underline for the current page */
 .navbar-links a::after {
-  content: '';
   position: absolute;
+  right: 0;
+  bottom: 0;
   left: 0;
-  bottom: 3px;
-  width: 0;
   height: 1px;
   background: var(--accent);
-  transition: width 0.25s ease;
+  content: '';
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s ease;
 }
 
 .navbar-links a:hover::after,
 .navbar-links a.active::after {
-  width: 100%;
+  transform: scaleX(1);
 }
 
+.navbar-links a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 5px;
+  border-radius: 2px;
+}
+
+/* Mobile menu toggle */
 .navbar-toggle {
   display: none;
-  padding: 8px;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: 1px solid var(--border);
-  border-radius: 4px;
-  background: transparent;
+  border-radius: 50%;
+  background: #fffcf7;
   color: var(--text-h);
-  font-size: 1.25rem;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
 }
 
-.navbar-toggle:focus-visible,
-.navbar-links a:focus-visible,
-.navbar-logo:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 5px;
+.navbar-toggle:hover {
+  background: var(--surface);
 }
 
+.navbar-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+/* Narrow desktop and tablet */
+@media (max-width: 1000px) and (min-width: 769px) {
+  .navbar {
+    gap: 18px;
+    padding-right: 28px;
+    padding-left: 28px;
+  }
+
+  .navbar-logo img {
+    width: 190px;
+  }
+
+  .navbar-links {
+    gap: 17px;
+    padding: 15px 20px;
+  }
+
+  .navbar-links a {
+    font-size: 14px;
+  }
+}
+
+/* Mobile navigation */
 @media (max-width: 768px) {
   .navbar {
-    padding: 18px 24px;
+    min-height: 90px;
+    padding: 14px 20px;
     gap: 16px;
   }
 
   .navbar-logo {
-    font-size: 1.4rem;
+    flex: 1 1 auto;
+  }
+
+  .navbar-logo img {
+    width: 185px;
+    max-width: min(100%, 230px);
+    max-height: 62px;
   }
 
   .navbar-toggle {
-    display: block;
+    display: inline-flex;
+    flex: 0 0 44px;
   }
 
   .navbar-links {
-    display: none;
     position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    padding: 24px;
+    top: calc(100% - 4px);
+    right: 20px;
+    left: 20px;
+    display: none;
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    box-shadow: 0 12px 20px rgba(48, 39, 34, 0.08);
+    gap: 8px;
+    padding: 18px 22px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: #fffcf7;
+    box-shadow: 0 12px 28px rgba(48, 34, 39, 0.12);
   }
 
   .navbar-links.open {
@@ -115,15 +195,35 @@
   }
 
   .navbar-links a {
+    min-height: 42px;
     padding: 10px 4px;
-    font-size: 1rem;
+    font-size: 15px;
+    white-space: normal;
   }
 
   .navbar-links a::after {
-    bottom: 4px;
+    right: auto;
+    width: 34px;
   }
 }
 
+@media (max-width: 360px) {
+  .navbar-logo img {
+    width: 155px;
+  }
+
+  .navbar {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .navbar-links {
+    right: 14px;
+    left: 14px;
+  }
+}
+
+/* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .navbar-links a,
   .navbar-links a::after {

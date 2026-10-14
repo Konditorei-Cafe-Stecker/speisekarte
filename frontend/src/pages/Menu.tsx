@@ -1,153 +1,211 @@
-
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import './Menu.css'
 import ProductCard from '../components/ProductCard/ProductCard'
+import { fetchMenuItems } from '../api/menu'
+import type { MenuItem } from '../api/menu'
 
-type Product = {
-  name: string
-  description: string
-  price: string
-  image?: string
-  imageAlt?: string
+const euroFormatter = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+})
+
+function categoryId(category: string) {
+  return category
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
 }
 
 function Menu() {
-  const tortenProducts: Product[] = [
-    {
-      name: 'Schokoladentorte',
-      description: 'Feine Schokoladentorte mit cremiger Füllung.',
-      price: '4,50 €',
-    },
-    {
-      name: 'Erdbeertorte',
-      description: 'Fruchtige Erdbeertorte mit leichter Sahnecreme.',
-      price: '4,50 €',
-    },
-    {
-      name: 'Hochzeitstorte',
-      description: 'Individuelle Torten für besondere Momente.',
-      price: 'Auf Anfrage',
-    },
-  ]
-
-  const kuchenProducts: Product[] = [
-    {
-      name: 'Apfelkuchen',
-      description: 'Klassischer Apfelkuchen nach traditionellem Rezept.',
-      price: '3,50 €',
-    },
-    {
-      name: 'Käsekuchen',
-      description: 'Cremiger Käsekuchen mit knusprigem Boden.',
-      price: '3,50 €',
-    },
-    {
-      name: 'Schokoladenkuchen',
-      description: 'Saftiger Schokoladenkuchen für echte Schokoladenfans.',
-      price: '3,80 €',
-    },
-  ]
-
-  const gebaeckProducts: Product[] = [
-    {
-      name: 'Buttercroissant',
-      description: 'Frisch gebackenes Croissant aus feinem Plunderteig.',
-      price: '2,20 €',
-    },
-    {
-      name: 'Schokocroissant',
-      description: 'Knuspriges Croissant mit feiner Schokoladenfüllung.',
-      price: '2,50 €',
-    },
-    {
-      name: 'Plundergebäck',
-      description: 'Feines Plundergebäck aus unserer Konditorei.',
-      price: '2,80 €',
-    },
-  ]
+  const [items, setItems] = useState<MenuItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  const [quantities, setQuantities] = useState<Record<number, number>>({})
 
   useEffect(() => {
+    const controller = new AbortController()
+
+    fetchMenuItems(controller.signal)
+      .then((menuItems) => {
+        if (controller.signal.aborted) return
+
+        setItems(menuItems)
+        setLoading(false)
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return
+
+        setError('Die Speisekarte konnte nicht geladen werden.')
+        setLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [attempt])
+
+  useEffect(() => {
+    if (items.length === 0) return
+
     const scrollToCategory = () => {
-      const id = decodeURIComponent(window.location.hash.slice(1))
+      let id: string
+
+      try {
+        id = decodeURIComponent(window.location.hash.slice(1))
+      } catch {
+        return
+      }
 
       if (!id) return
 
-      const target = document.getElementById(id)
-
-      target?.scrollIntoView({
+      document.getElementById(id)?.scrollIntoView({
         behavior: 'auto',
         block: 'start',
       })
     }
 
     const frame = requestAnimationFrame(scrollToCategory)
+    window.addEventListener('hashchange', scrollToCategory)
 
-    return () => cancelAnimationFrame(frame)
-  }, [])
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('hashchange', scrollToCategory)
+    }
+  }, [items])
+
+  function retryLoading() {
+    setError(null)
+    setLoading(true)
+    setAttempt((previous) => previous + 1)
+  }
+
+  function changeQuantity(item: MenuItem, quantity: number) {
+    setQuantities((previous) => {
+      const currentQuantity = previous[item.id] ?? 0
+
+      if (!item.available && quantity > currentQuantity) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        [item.id]: Math.max(0, quantity),
+      }
+    })
+  }
+
+  const categories = [...new Set(items.map((item) => item.category))]
+
+  const selectedQuantity = items.reduce(
+    (total, item) => total + (quantities[item.id] ?? 0),
+    0,
+  )
+
+  const totalCents = items.reduce(
+    (total, item) =>
+      total + Math.round(item.price * 100) * (quantities[item.id] ?? 0),
+    0,
+  )
 
   return (
-    <section className="menu">
+    <section className="menu" aria-busy={loading}>
       <div className="menu-header">
         <p className="menu-eyebrow">UNSERE AUSWAHL</p>
-
         <h1>Speisekarte</h1>
-
         <p className="menu-description">
-          Entdecke unsere handgemachten Kuchen, Torten und
-          feinen Gebäckspezialitäten.
+          Entdecke unsere Getränke, Speisen und Desserts.
         </p>
       </div>
 
-      <section className="menu-category" id="torten">
-        <h2>Torten</h2>
+      {!loading && !error && items.length > 0 && (
+        <aside className="menu-summary" aria-label="Deine Auswahl">
+          <div>
+            <p>{selectedQuantity} Artikel ausgewählt</p>
+            <p>
+              Gesamt:{' '}
+              <output aria-label="Gesamtpreis">
+                {euroFormatter.format(totalCents / 100)}
+              </output>
+            </p>
+          </div>
 
-        <div className="product-grid">
-          {tortenProducts.map((product) => (
-            <ProductCard
-              key={product.name}
-              name={product.name}
-              description={product.description}
-              price={product.price}
-              image={product.image}
-              imageAlt={product.imageAlt}
-            />
-          ))}
+          <button
+            type="button"
+            disabled={selectedQuantity === 0}
+            onClick={() => setQuantities({})}
+          >
+            Auswahl löschen
+          </button>
+        </aside>
+      )}
+
+      {loading && <p role="status">Speisekarte wird geladen…</p>}
+
+      {error && (
+        <div role="alert">
+          <p>{error}</p>
+          <button type="button" onClick={retryLoading}>
+            Erneut versuchen
+          </button>
         </div>
-      </section>
+      )}
 
-      <section className="menu-category" id="kuchen">
-        <h2>Kuchen</h2>
+      {!loading && !error && items.length === 0 && (
+        <p>Aktuell sind keine Produkte vorhanden.</p>
+      )}
 
-        <div className="product-grid">
-          {kuchenProducts.map((product) => (
-            <ProductCard
-              key={product.name}
-              name={product.name}
-              description={product.description}
-              price={product.price}
-              image={product.image}
-              imageAlt={product.imageAlt}
-            />
-          ))}
-        </div>
-      </section>
+      {!loading &&
+        !error &&
+        categories.map((category) => {
+          const categoryItems = items.filter(
+            (item) => item.category === category,
+          )
 
-      <section className="menu-category" id="gebaeck">
-        <h2>Gebäck</h2>
+          const subcategories = [
+            ...new Set(
+              categoryItems.map((item) => item.subcategory ?? ''),
+            ),
+          ]
 
-        <div className="product-grid">
-          {gebaeckProducts.map((product) => (
-            <ProductCard
-              key={product.name}
-              name={product.name}
-              description={product.description}
-              price={product.price}
-              image={product.image}
-              imageAlt={product.imageAlt}
-            />
-          ))}
-        </div>
-      </section>
+          return (
+            <section
+              className="menu-category"
+              id={categoryId(category)}
+              key={category}
+            >
+              <h2>{category}</h2>
+
+              {subcategories.map((subcategory) => (
+                <div className="menu-subcategory" key={subcategory}>
+                  {subcategory && <h3>{subcategory}</h3>}
+
+                  <div className="product-grid">
+                    {categoryItems
+                      .filter(
+                        (item) =>
+                          (item.subcategory ?? '') === subcategory,
+                      )
+                      .map((item) => (
+                        <ProductCard
+                          key={item.id}
+                          name={item.name}
+                          description={item.description}
+                          price={euroFormatter.format(item.price)}
+                          sizeVolume={item.sizeVolume}
+                          notes={item.notes}
+                          available={item.available}
+                          quantity={quantities[item.id] ?? 0}
+                          onQuantityChange={(quantity) =>
+                            changeQuantity(item, quantity)
+                          }
+                        />
+                      ))}
+                  </div>
+                </div>
+              ))}
+            </section>
+          )
+        })}
     </section>
   )
 }

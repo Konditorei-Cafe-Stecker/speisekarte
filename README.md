@@ -1,27 +1,50 @@
-# Speisekarte
+# Speisekarte — Café Stecker
 
-## Project Description
-This is the Speisekarte project for the stecker-konditorei. It serves as a digital menu for the bakery, showcasing various products and offerings.
+A digital menu and order analytics project built with React, TypeScript,
+Spring Boot and PostgreSQL.
 
-## Project Structure
-- **index.html**: Main HTML file displaying the menu.
-- **styles/**: Directory containing stylesheets.
-- **scripts/**: Directory for JavaScript files.
-- **images/**: Directory for images of products.
-- **README.md**: Information about the project.
+The planned application lets customers prepare an order and show its QR
+code to a waiter. The waiter reviews the order, makes any changes, enters
+it into the official system, and confirms the final details in this website.
 
-## Java backend
+Confirmed order data will support analysis by time, weather, temperature,
+football matches and nearby events, followed by offer recommendations.
 
-The backend uses Java 21, Spring Boot, Spring Data JPA, and PostgreSQL.
+## Currently implemented
 
-Menu products are stored in PostgreSQL and returned through `GET /api/menu`,
-ordered by ID.
+- PostgreSQL-backed menu returned through `GET /api/menu`.
+- Import script containing 107 products from the supplied menu spreadsheet.
+- Categories, subcategories, descriptions, sizes, notes and availability.
+- Frontend menu loading, error handling and retry.
+- Quantity selection and a total calculated in integer cents.
+- Responsive product cards and a fixed total bar.
 
-### PostgreSQL setup on macOS
+Selections currently live in the menu page's state.
+Order saving, order QR codes, staff access and analytics are planned.
 
-Requirements: Java 21 and Homebrew.
+## Project structure
 
-Install and start PostgreSQL:
+| Path | Purpose |
+|---|---|
+| `frontend/` | React, TypeScript and Vite application |
+| `backend/` | Java and Spring Boot application |
+| `backend/src/main/resources/db/` | Manually executed SQL scripts |
+| `README.md` | Project description and local setup |
+
+## Requirements
+
+The local setup has been tested with:
+
+- Java 21
+- Node.js 24 and npm
+- PostgreSQL 17
+- Homebrew for the macOS database installation
+
+Commands below assume you start from the repository root.
+
+## PostgreSQL setup on macOS
+
+For a new local database, install and start PostgreSQL:
 
 ```bash
 brew install postgresql@17
@@ -34,8 +57,8 @@ Open PostgreSQL's command-line client:
 /opt/homebrew/opt/postgresql@17/bin/psql -d postgres
 ```
 
-Run the following lines one at a time inside psql.
-At `\password`, choose your own password and enter it twice when prompted:
+Run these lines one at a time inside psql.
+At `\password`, choose a password and enter it twice when prompted:
 
 ```text
 CREATE ROLE stecker_app WITH LOGIN;
@@ -44,18 +67,20 @@ CREATE DATABASE stecker OWNER stecker_app;
 \q
 ```
 
+Skip database creation if this role and database already exist.
+
 The local Spring profile connects to database `stecker` on
 `localhost:5432` using account `stecker_app`.
 
-Its password configuration is:
+The password is supplied through an environment variable:
 
 ```properties
 spring.datasource.password=${STECKER_DB_PASSWORD}
 ```
 
-Keep the real password out of project files and Git commits.
+Keep the actual password out of project files and Git commits.
 
-### Start the backend
+## Start the backend
 
 From the repository root:
 
@@ -63,14 +88,14 @@ From the repository root:
 cd backend
 ```
 
-In macOS's zsh Terminal, run this command first, then enter your database
-password when prompted. Your typing will be hidden:
+In macOS's zsh Terminal, run this command and enter the database password.
+Typing will be hidden:
 
 ```bash
 read -r -s 'STECKER_DB_PASSWORD?Database password: '
 ```
 
-Then export the variable and start Spring Boot with the local profile:
+Then export the variable and start the backend:
 
 ```bash
 export STECKER_DB_PASSWORD
@@ -82,43 +107,140 @@ Keep this Terminal tab running. Stop the backend with Control+C.
 The local profile uses `spring.jpa.hibernate.ddl-auto=update` to create
 or adjust tables during development.
 
-### Add sample menu products
+## Import the menu
 
-After the backend starts successfully:
+Start the backend successfully before importing products.
 
 1. Connect pgAdmin to database `stecker` using account `stecker_app`.
 2. Open the database's Query Tool.
-3. Execute the contents of
-   `backend/src/main/resources/db/sample-menu.sql`.
+3. Execute:
+   `backend/src/main/resources/db/stecker_menu_import.sql`.
 
-The script adds Cappuccino, Käsekuchen, and Buttercroissant only when
-the `menu_items` table is empty. It then displays the saved rows.
+This script runs manually. It imports 107 products across:
 
-This script is run manually.
+- Getränke
+- Speisen
+- Eis & Desserts
 
-### Check the API
+Existing matching products are skipped. Their stored prices are not updated
+by rerunning the import.
 
-Open these addresses in your browser:
+Imported products initially have `available = true`.
+Some incomplete source entries were excluded, and unclear source notes
+should be reviewed before publication.
 
-- Health: http://localhost:8080/api/health
-- Menu: http://localhost:8080/api/menu
+Surcharges mentioned in notes are informational.
+The current quantity selector totals the stored base prices.
 
-The menu endpoint returns an empty JSON array when there are no products.
-After adding sample products, it returns those database records.
+The older `db/sample-menu.sql` script provides three development samples.
+Use the full import for the actual menu. The full import preserves any
+products already in the database.
 
-### Build and test
+## Start the frontend
 
-From the `backend` directory:
+Open another Terminal tab at the repository root:
 
 ```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open:
+
+- Website: http://localhost:5173
+- Menu: http://localhost:5173/menu
+
+Keep the backend running too.
+
+Vite forwards development requests beginning with `/api` to
+`http://localhost:8080`.
+
+Production hosting will need its own API routing configuration.
+
+## Check the API
+
+| Address | Purpose |
+|---|---|
+| `http://localhost:8080/api/health` | Backend health |
+| `http://localhost:8080/api/menu` | Products from PostgreSQL |
+| `http://localhost:5173/api/menu` | Menu through the Vite development proxy |
+
+Menu records include:
+
+`id`, `name`, `description`, `price`, `category`, `subcategory`,
+`sizeVolume`, `notes` and `available`.
+
+## Build and checks
+
+Backend, starting from the repository root:
+
+```bash
+cd backend
 ./gradlew build
 ```
 
-This compiles the backend, runs its automated tests, and builds the
-application package.
+Spring integration tests use the `test` profile and an in-memory H2 database.
+Use the local PostgreSQL setup to verify PostgreSQL-specific behaviour.
 
-Spring integration tests activate the `test` profile and use an H2
-database in memory. Tests cover application startup, repository
-persistence and ID ordering, and service delegation.
+Frontend, starting from the repository root:
 
-Use the local PostgreSQL setup to check PostgreSQL-specific behavior.
+```bash
+cd frontend
+npm run build
+npm run lint
+```
+
+Manual frontend checks:
+
+- Products and size variants display correctly.
+- Quantities increase and decrease without becoming negative.
+- Unavailable products cannot be added.
+- Clearing the selection resets quantities and the total.
+- One Tasse Filterkaffee and two Cappuccino mit Milch total 11,70 €.
+- Backend failures display an error and support retry.
+- The layout works at narrow widths and the final product remains accessible.
+
+## Planned order workflow
+
+1. Customer selects products and adds requests.
+2. Website saves a pending order and displays its QR code.
+3. Waiter scans the QR and opens a staff-only order page.
+4. Waiter adjusts the order and enters it into the official system.
+5. Waiter confirms the final quantities and prices in this website.
+
+Planned statuses: `PENDING`, `CONFIRMED` and `CANCELLED`.
+
+Confirmation means the waiter has recorded the order in the official system.
+Payment information would require separate tracking.
+
+## Planned analytics
+
+- Product quantities and confirmed order values by hour and weekday.
+- Comparisons across temperature, rain, football matches and nearby events.
+- Forecasts and offer suggestions with supporting data.
+- Reproducible synthetic historical orders for demonstration and evaluation.
+
+Generated orders will be labelled `SYNTHETIC`.
+Real and synthetic data will be distinguishable in reports.
+Results from simulated data will be described as simulation results.
+
+## Work split and remaining tasks
+
+Frontend work:
+- Customer ordering and QR display.
+- Waiter review, modification and confirmation pages.
+- Dashboard presentation, mobile checks and deployment.
+- Update home-page links currently targeting `/menu#torten`,
+  `/menu#kuchen` and `/menu#gebaeck` to suitable destinations.
+
+Data and analytics work:
+- Synthetic historical order generation.
+- Weather, match and nearby-event data.
+- Analysis, forecasting and offer recommendation logic.
+- Analytics endpoints and chart data.
+
+Shared work:
+- Order database model and Spring Boot order API.
+- Staff access and server-side price handling.
+- Review missing menu details and actual availability.

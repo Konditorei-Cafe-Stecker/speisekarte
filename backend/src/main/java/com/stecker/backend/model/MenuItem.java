@@ -28,7 +28,14 @@ public class MenuItem {
 
     @Column(nullable = false)
     private String category;
+    @Column
+    private String subcategory;
 
+    @Column(name = "size_volume")
+    private String sizeVolume;
+
+    @Column(length = 1000)
+    private String notes;
     @Column(nullable = false)
     private boolean available;
 
@@ -73,5 +80,16 @@ public class MenuItem {
 
     public boolean isAvailable() {
         return available;
+    }
+    public String getSubcategory() {
+        return subcategory;
+    }
+
+    public String getSizeVolume() {
+        return sizeVolume;
+    }
+
+    public String getNotes() {
+        return notes;
     }
 }

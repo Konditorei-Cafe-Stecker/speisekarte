@@ -87,3 +87,47 @@
     font-size: 1.25rem;
   }
 }
+.product-card-quantity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.product-card-quantity button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.product-card-quantity button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.product-card-quantity button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.product-card-quantity button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.product-card-quantity output {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-h);
+}

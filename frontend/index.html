@@ -1,10 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <meta name="theme-color" content="#fbf8f3" />
+    <title>Konditorei Café Stecker · Bremen, seit 1908</title>
+    <meta
+      name="description"
+      content="Konditorei Café Stecker in der Bremer Innenstadt: Torten, Kuchen, feines Gebäck, Kaffee und Konditor-Eis aus eigener Herstellung – seit 1908. Speisekarte ansehen und am Tisch bestellen."
+    />
+    <!-- Hero photo of the Startseite, the largest element of the first
+         screen. Only on "/": the script below switches the preload on, so
+         guests opening the Speisekarte do not download it. -->
+    <link
+      id="hero-preload"
+      rel="x-preload"
+      as="image"
+      type="image/avif"
+      href="/src/assets/photos/hero-800.avif"
+      imagesrcset="/src/assets/photos/hero-800.avif 800w, /src/assets/photos/hero-1180.avif 1180w"
+      imagesizes="(min-width: 1296px) 600px, (min-width: 700px) 46vw, 92vw"
+      fetchpriority="high"
+    />
+    <script>
+      if (location.pathname === '/') {
+        document.getElementById('hero-preload').rel = 'preload'
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

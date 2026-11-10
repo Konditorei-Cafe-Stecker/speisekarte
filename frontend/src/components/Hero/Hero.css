@@ -1,521 +1,180 @@
-
 .hero {
-  width: 100%;
-  padding: 50px max(24px, calc((100% - 1296px) / 2)) 0;
-  box-sizing: border-box;
-  text-align: left;
-}
-
-.hero-main {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
-  align-items: stretch;
-  gap: 32px;
-  width: 100%;
-  max-width: 1296px;
-  margin: 0 auto;
-}
-
-.hero-content {
-  min-width: 0;
-  padding-top: 50px;
+  padding-top: clamp(40px, 6vw, 80px);
+  padding-bottom: clamp(56px, 7vw, 104px);
 }
 
 .hero-eyebrow {
-  margin: 0;
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 1.4px;
-  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+.hero-title-wrap {
+  transform-origin: left top;
 }
 
 .hero h1 {
-  margin: 26px 0 18px;
-  color: var(--text-h);
-  font-family: var(--heading);
-  font-size: clamp(42px, 4.1vw, 58px);
-  font-weight: 400;
-  line-height: 1.14;
+  margin: 0;
+  font-size: var(--fs-hero);
+  line-height: 0.96;
   letter-spacing: -0.035em;
 }
 
-.hero-description {
-  max-width: 600px;
-  margin: 0 0 34px;
-  color: var(--text);
-  font-size: 20px;
-  line-height: 1.5;
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: clamp(32px, 5vw, 80px);
+  align-items: end;
+  margin-top: clamp(40px, 5vw, 72px);
 }
 
-.hero-buttons {
+.hero-copy {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 20px;
+  gap: 32px;
+  padding-bottom: 12px;
 }
 
-.hero-button {
-  display: inline-flex;
-  justify-content: center;
+.hero-description {
+  max-width: 30em;
+  color: var(--text);
+  font-size: clamp(18px, 1.6vw, 22px);
+  line-height: 1.55;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  min-height: 56px;
-  padding: 14px 19px;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.4;
-  text-align: center;
-  text-decoration: none;
-  transition:
-    transform 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.hero-button.primary {
-  background: var(--accent);
-  color: #fff;
-}
-
-.hero-button.primary:hover {
-  background: var(--accent-hover);
-  transform: translateY(-2px);
+  gap: 16px 28px;
 }
 
 .hero-secondary-link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
   color: var(--text-h);
-  font-size: 18px;
-  line-height: 1.5;
-  text-decoration: none;
-  transition: color 0.2s ease;
+  font-weight: 500;
+  text-underline-offset: 6px;
 }
 
 .hero-secondary-link:hover {
   color: var(--accent);
 }
 
-.hero-button:focus-visible,
-.hero-secondary-link:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
+/* Today's hours and the address */
+.hero-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 40px;
+  margin-top: 8px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
 }
 
-/* Hero photograph and frame */
 .hero-visual {
   position: relative;
-  width: 100%;
-  height: 570px;
-  padding: 15px 25px;
-  overflow: visible;
-  box-sizing: border-box;
-  border-radius: 8px;
+}
+
+/* Arch-shaped photo frame */
+.hero-photo {
+  aspect-ratio: 5 / 4.6;
+  overflow: hidden;
+  border-radius: 999px 999px 6px 6px;
   background: var(--surface);
 }
 
-.hero-visual > img {
+.hero-photo img {
   display: block;
   width: 100%;
   height: 100%;
-  border: 1px solid var(--border);
-  border-radius: 4px;
   object-fit: cover;
-  object-position: center;
 }
 
-/* Interactive doodle buttons */
-.hero-doodle {
+/* Round badge with rotating ring text */
+.hero-badge {
   position: absolute;
-  z-index: 2;
+  bottom: 36px;
+  left: -28px;
   display: grid;
   place-items: center;
-  width: 70px;
-  height: 70px;
-  padding: 10px;
-  border: 1px solid #dfcbb5;
+  width: 132px;
+  height: 132px;
   border-radius: 50%;
-  background: #fffcf7;
-  color: var(--accent);
-  box-shadow: 0 5px 18px rgba(48, 34, 39, 0.12);
-  cursor: pointer;
-  animation: doodle-float 4.8s ease-in-out infinite;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s ease;
+  background: var(--text-h);
+  color: var(--bg);
 }
 
-.hero-doodle svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.hero-doodle:hover,
-.hero-doodle[aria-expanded='true'] {
-  background: var(--accent);
-  color: #fffaf3;
-  box-shadow: 0 7px 22px rgba(48, 34, 39, 0.2);
-}
-
-.hero-doodle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-}
-
-/* Position each doodle around the photograph */
-.hero-doodle--coffee {
-  top: 32px;
-  right: -22px;
-}
-
-.hero-doodle--cake {
-  bottom: 92px;
-  left: -24px;
-  animation-delay: -1.5s;
-}
-
-.hero-doodle--wheat {
-  right: 28px;
-  bottom: -18px;
-  width: 62px;
-  height: 62px;
-  animation-delay: -3s;
-}
-
-/* Messages displayed when a doodle is clicked */
-.hero-doodle-note {
+.hero-badge-ring {
   position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: 190px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fffcf7;
-  color: var(--text-h);
-  box-shadow: 0 6px 20px rgba(48, 34, 39, 0.12);
+  inset: 0;
+  transform-origin: 50% 50%;
+  animation: hero-badge-spin 22s linear infinite;
+}
+
+.hero-badge-ring text {
+  fill: var(--on-dark);
   font-family: var(--sans);
   font-size: 13px;
-  font-weight: 400;
-  line-height: 1.5;
-  text-align: left;
-  pointer-events: none;
-  animation: doodle-note-in 0.18s ease-out;
 }
 
-.hero-doodle--cake .hero-doodle-note,
-.hero-doodle--wheat .hero-doodle-note {
-  top: auto;
-  right: auto;
-  bottom: calc(100% + 10px);
-  left: 0;
-}
-
-/* Feature card in the whitespace beside the photograph */
-.hero-side-note {
-  position: absolute;
-  z-index: 3;
-  top: 50%;
-  right: -230px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  width: 210px;
-  padding: 22px 20px;
-  box-sizing: border-box;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #fffcf7;
-  color: var(--text-h);
-  box-shadow: 0 8px 26px rgba(48, 34, 39, 0.1);
-  text-decoration: none;
-  transform: translateY(-50%);
-  transition:
-    box-shadow 0.25s ease,
-    transform 0.25s ease;
-}
-
-.hero-side-note:hover {
-  box-shadow: 0 12px 30px rgba(48, 34, 39, 0.15);
-  transform: translateY(calc(-50% - 4px));
-}
-
-.hero-side-note:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-}
-
-.hero-side-note-mark {
-  margin-bottom: 16px;
-  color: var(--accent);
-  font-size: 32px;
+.hero-badge-year {
+  font-family: var(--heading);
+  font-size: 30px;
   line-height: 1;
 }
 
-.hero-side-note-eyebrow {
-  margin-bottom: 10px;
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1.3px;
-  line-height: 1.5;
-}
-
-.hero-side-note strong {
-  margin-bottom: 14px;
-  font-family: var(--heading);
-  font-size: 23px;
-  font-weight: 400;
-  line-height: 1.25;
-}
-
-.hero-side-note-bottom {
-  display: flex;
-  gap: 6px;
-  color: var(--text);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.hero-side-note-bottom span {
-  color: var(--accent);
-  white-space: nowrap;
-}
-
-/* Trust line below the hero */
-.hero-footer {
-  width: 100%;
-  max-width: 1296px;
-  margin: 70px auto 0;
-  padding: 24px 0 12px;
-  border-top: 1px solid var(--border);
-}
-
-.hero-trust {
-  margin: 0;
-  color: var(--text);
-  font-size: 14px;
-  line-height: 1.6;
-  letter-spacing: 1.2px;
-}
-
-/* Animations */
-@keyframes doodle-float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-3deg);
-  }
-
-  50% {
-    transform: translateY(-7px) rotate(3deg);
+@keyframes hero-badge-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
-@keyframes doodle-note-in {
+/* Short load-in, runs once. Pure CSS, so the content also appears when
+   JavaScript fails. The photo only moves (no fade) so it paints at once. */
+@keyframes hero-in {
   from {
     opacity: 0;
-    transform: translateY(4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: translateY(36px);
   }
 }
 
-/* Tablet */
-@media (max-width: 900px) {
-  .hero {
-    padding-right: 32px;
-    padding-left: 32px;
+@keyframes hero-in-move {
+  from {
+    transform: translateY(36px);
   }
+}
 
-  .hero-main {
-    gap: 24px;
-  }
-
-  .hero-content {
-    padding-top: 35px;
+@media (prefers-reduced-motion: no-preference) {
+  .hero-eyebrow,
+  .hero h1,
+  .hero-copy {
+    animation: hero-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
 
   .hero h1 {
-    font-size: clamp(36px, 5vw, 48px);
+    animation-delay: 0.12s;
   }
 
-  .hero-description {
-    font-size: 17px;
-  }
-
-  .hero-description-break {
-    display: none;
+  .hero-copy {
+    animation-delay: 0.26s;
   }
 
   .hero-visual {
-    height: 460px;
-    padding: 12px 16px;
-  }
-
-  .hero-secondary-link {
-    font-size: 16px;
-  }
-
-  .hero-footer {
-    margin-top: 48px;
-  }
-
-  .hero-trust {
-    font-size: 12px;
-    letter-spacing: 0.7px;
-  }
-
-  .hero-doodle {
-    width: 60px;
-    height: 60px;
-  }
-
-  .hero-doodle--wheat {
-    width: 54px;
-    height: 54px;
+    animation: hero-in-move 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.4s both;
   }
 }
 
-/* Mobile */
-@media (max-width: 640px) {
-  .hero {
-    padding: 32px 20px 0;
-  }
-
-  .hero-main {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 30px;
-  }
-
-  .hero-content {
-    padding-top: 0;
-  }
-
-  .hero-eyebrow {
-    font-size: 11px;
-    letter-spacing: 1px;
-  }
-
-  .hero h1 {
-    margin: 20px 0 16px;
-    font-size: clamp(38px, 9vw, 48px);
-    line-height: 1.12;
-  }
-
-  .hero-description {
-    margin-bottom: 26px;
-    font-size: 16px;
-    line-height: 1.65;
-  }
-
-  .hero-buttons {
-    gap: 17px;
-  }
-
-  .hero-button.primary {
-    width: 100%;
-    max-width: 340px;
-  }
-
-  .hero-secondary-link {
-    font-size: 15px;
-  }
-
-  .hero-visual {
-    height: auto;
-    aspect-ratio: 1.1 / 1;
-    padding: 12px 14px;
-  }
-
-  .hero-doodle {
-    width: 54px;
-    height: 54px;
-    padding: 8px;
-  }
-
-  .hero-doodle--coffee {
-    top: 18px;
-    right: 8px;
-  }
-
-  .hero-doodle--cake {
-    bottom: 62px;
-    left: 8px;
-  }
-
-  .hero-doodle--wheat {
-    right: 12px;
-    bottom: -12px;
-    width: 50px;
-    height: 50px;
-  }
-
-  .hero-doodle-note {
-    width: 160px;
-    font-size: 12px;
-  }
-
-  .hero-footer {
-    margin-top: 34px;
-    padding-top: 20px;
-  }
-
-  .hero-trust {
-    font-size: 10px;
-    line-height: 1.9;
-    letter-spacing: 0.5px;
+/* On phones the badge would hang outside the page edge. */
+@media (max-width: 720px) {
+  .hero-badge {
+    bottom: 20px;
+    left: -6px;
   }
 }
 
-/* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
-  .hero-doodle {
+  .hero-badge-ring {
     animation: none;
-  }
-
-  .hero-doodle-note {
-    animation: none;
-  }
-
-  .hero-button,
-  .hero-secondary-link {
-    transition: none;
-  }
-
-  .hero-button.primary:hover {
-    transform: none;
-  }
-
-  .hero-side-note {
-    transition: none;
-  }
-
-  .hero-side-note:hover {
-    transform: translateY(-50%);
-  }
-}
-
-/* Keep the feature card from crowding narrower layouts */
-@media (max-width: 1100px) {
-  .hero-side-note {
-    display: none;
-  }
-}
-
-@media (min-width: 1450px) {
-  .hero-side-note {
-    right: -205px;
-    width: 190px;
-    padding: 20px 16px;
   }
 }

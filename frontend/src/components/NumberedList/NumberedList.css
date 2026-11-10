@@ -1,0 +1,33 @@
+.numbered {
+  padding-top: var(--section-space);
+  padding-bottom: var(--section-space);
+}
+
+.numbered-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: clamp(28px, 4vw, 56px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.numbered-item {
+  padding-top: 20px;
+  border-top: 1px solid var(--text-h);
+}
+
+.numbered-number {
+  display: block;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+}
+
+.numbered-item h3 {
+  margin: clamp(24px, 4vw, 56px) 0 12px;
+  font-size: clamp(24px, 2.4vw, 30px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}

@@ -1,0 +1,7 @@
+/* The Startseite reads slightly larger than the rest of the site.
+   overflow-x: clip keeps wide decorative lines from causing sideways
+   scrolling without breaking the sticky header. */
+.home {
+  overflow-x: clip;
+  font-size: 17px;
+}

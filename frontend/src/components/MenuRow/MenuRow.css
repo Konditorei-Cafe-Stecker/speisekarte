@@ -1,0 +1,141 @@
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.menu-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Printed-menu line: name, dotted leader, price. */
+.menu-row-top {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.menu-row h3 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.menu-row-leader {
+  flex: 1;
+  min-width: 12px;
+  border-bottom: 1px dotted #a8998a;
+}
+
+.menu-row-price {
+  color: var(--text-h);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.menu-row-meta {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.menu-row-unavailable {
+  font-weight: 600;
+}
+
+.menu-row.is-unavailable h3,
+.menu-row.is-unavailable .menu-row-price {
+  color: var(--text);
+}
+
+.menu-row-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.menu-row-quantity {
+  min-width: 22px;
+  color: var(--text-h);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Round 44px quantity buttons. */
+.qty-button {
+  display: grid;
+  place-items: center;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  border: 1px solid var(--text-h);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-h);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.qty-button.is-filled {
+  background: var(--text-h);
+  color: var(--bg);
+}
+
+.qty-button:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.qty-button:disabled {
+  border-color: var(--border-strong);
+  color: var(--border-strong);
+  cursor: not-allowed;
+}
+
+/* Hover only where a real pointer exists, so it does not stick on phones. */
+@media (hover: hover) {
+  .qty-button:hover:not(:disabled) {
+    background: var(--text-h);
+    color: var(--bg);
+  }
+}
+
+/* Phones: the buttons sit beside the name and price only, so size,
+   description and notes can use the full width underneath. */
+@media (max-width: 480px) {
+  .menu-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+  }
+
+  .menu-row-main {
+    display: contents;
+  }
+
+  .menu-row-top {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .menu-row-controls {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .menu-row-meta {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qty-button {
+    transition: none;
+  }
+}

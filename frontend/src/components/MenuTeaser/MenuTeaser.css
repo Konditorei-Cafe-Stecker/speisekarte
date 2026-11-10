@@ -1,0 +1,105 @@
+.menu-teaser {
+  padding-top: var(--section-space);
+  padding-bottom: var(--section-space);
+}
+
+.menu-teaser-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: clamp(36px, 6vw, 96px);
+  align-items: start;
+}
+
+.menu-teaser-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.menu-teaser-intro .section-title {
+  font-size: clamp(38px, 5vw, 72px);
+}
+
+.menu-teaser-intro .btn {
+  align-self: flex-start;
+}
+
+.menu-teaser-description {
+  max-width: 26em;
+  color: var(--text);
+}
+
+/* Rows in printed-menu style. The list clips the rows while they slide in. */
+.menu-teaser-list {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--border);
+}
+
+.menu-teaser-row {
+  padding: 22px 0;
+  border-top: 1px solid var(--border);
+}
+
+.menu-teaser-row:first-child {
+  border-top-color: var(--text-h);
+}
+
+.menu-teaser-row-top {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.menu-teaser-row h3 {
+  margin: 0;
+  font-size: clamp(21px, 1.2vw + 16px, 26px);
+  line-height: 1.2;
+}
+
+.menu-teaser-leader {
+  flex: 1;
+  min-width: 12px;
+  border-bottom: 1px dotted #a8998a;
+}
+
+.menu-teaser-price {
+  color: var(--text-h);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.menu-teaser-row p {
+  margin-top: 6px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.menu-teaser-fallback {
+  padding: 22px 0;
+  border-top: 1px solid var(--text-h);
+  color: var(--text);
+}
+
+/* Placeholder bars with exactly the height of a real one-line row
+   (31px name + 6px gap + 24px detail), so nothing below jumps. */
+.menu-teaser-row--loading span {
+  display: block;
+  height: 31px;
+  border-radius: 6px;
+  background: var(--border);
+}
+
+.menu-teaser-row--loading span + span {
+  width: 55%;
+  height: 20px;
+  margin-top: 10px;
+}
+
+/* On phones long names wrap to two lines; a taller placeholder keeps the
+   sections below from jumping when the real rows arrive. */
+@media (max-width: 480px) {
+  .menu-teaser-row--loading span:first-child {
+    height: 38px;
+  }
+}

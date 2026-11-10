@@ -1,0 +1,53 @@
+.site-footer {
+  overflow: hidden;
+  background: var(--dark);
+  color: var(--on-dark);
+}
+
+.site-footer-inner {
+  padding-top: clamp(48px, 6vw, 88px);
+  padding-bottom: 32px;
+}
+
+/* The logo file is blue; the filter turns it cream for the dark footer. */
+.site-footer-logo {
+  display: block;
+  width: min(100%, 980px);
+  height: auto;
+  filter: brightness(0) invert(0.93) sepia(0.12);
+}
+
+.site-footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 32px;
+  margin-top: clamp(32px, 4vw, 56px);
+  padding-top: 24px;
+  border-top: 1px solid #5a493f;
+  color: var(--on-dark-muted);
+  font-size: 14px;
+}
+
+.site-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+}
+
+.site-footer-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  color: var(--on-dark);
+  text-underline-offset: 6px;
+}
+
+.site-footer-links a:hover {
+  color: var(--gold);
+}
+
+.site-footer :focus-visible {
+  outline-color: var(--gold);
+}

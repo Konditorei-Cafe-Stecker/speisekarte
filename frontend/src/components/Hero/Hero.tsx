@@ -1,155 +1,145 @@
-
-import { useState } from 'react'
+import { useRef } from 'react'
+import { Link } from 'react-router-dom'
 import './Hero.css'
-import heroImage from '../../assets/hero-bakery.jpg'
-
-type DoodleType = 'coffee' | 'cake' | 'wheat'
+import ArrowIcon from '../ArrowIcon/ArrowIcon'
+import { site } from '../../content/site'
+import heroAvif800 from '../../assets/photos/hero-800.avif'
+import heroAvif1180 from '../../assets/photos/hero-1180.avif'
+import heroFallback from '../../assets/photos/hero-800.jpg'
+import { MOTION_OK, SCRUB, gsap, useGSAP } from '../../utils/motion'
 
 function Hero() {
-  const [activeDoodle, setActiveDoodle] = useState<DoodleType | null>(null)
+  const heroRef = useRef<HTMLElement>(null)
 
-  function toggleDoodle(doodle: DoodleType) {
-    setActiveDoodle((current) => (current === doodle ? null : doodle))
-  }
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia(heroRef)
+
+      mm.add(MOTION_OK, () => {
+        // The headline fades and lifts away while the hero leaves the screen.
+        gsap.to('.hero-title-wrap', {
+          opacity: 0.15,
+          y: -70,
+          scale: 0.96,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: heroRef.current,
+            start: 'top top',
+            end: 'bottom top',
+            scrub: SCRUB,
+          },
+        })
+
+        // Parallax: the photo is slightly enlarged and drifts in its frame.
+        gsap.fromTo(
+          '.hero-photo img',
+          { yPercent: -7, scale: 1.14 },
+          {
+            yPercent: 7,
+            scale: 1.14,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: '.hero-photo',
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: SCRUB,
+            },
+          },
+        )
+      })
+    },
+    { scope: heroRef },
+  )
 
   return (
-    <section className="hero" aria-labelledby="hero-title">
-      <div className="hero-main">
-        <div className="hero-content">
-          <p className="hero-eyebrow">
-            HANDWERK · TRADITION · SEIT 1908
-          </p>
+    <section
+      ref={heroRef}
+      className="container hero"
+      aria-labelledby="hero-title"
+    >
+      <p className="eyebrow hero-eyebrow">
+        Handwerk · Tradition · Bremer Innenstadt
+      </p>
 
-          <h1 id="hero-title">
-            Tradition, die
-            <br />
-            man schmeckt.
-          </h1>
+      <div className="hero-title-wrap">
+        <h1 id="hero-title">
+          Tradition, die
+          <br />
+          man <em>schmeckt.</em>
+        </h1>
+      </div>
 
+      <div className="hero-grid">
+        <div className="hero-copy">
           <p className="hero-description">
-            Mit Liebe gebacken, mit Sorgfalt verziert und
-            <br className="hero-description-break" />
-            seit Generationen ein Stück Zuhause.
+            Mit Liebe gebacken, mit Sorgfalt verziert und seit Generationen
+            ein Stück Zuhause – mitten in Bremen.
           </p>
 
-          <div className="hero-buttons">
-            <a href="#spezialitaeten" className="hero-button primary">
-              Unsere Spezialitäten
-            </a>
+          <div className="hero-actions">
+            <Link to="/menu" className="btn btn--accent">
+              Zur Speisekarte
+              <ArrowIcon />
+            </Link>
 
-            <a href="/tortenservice" className="hero-secondary-link">
-              Torten individuell anfragen ↗
-            </a>
+            <Link to="/tortenservice" className="hero-secondary-link">
+              Torten individuell anfragen
+            </Link>
+          </div>
+
+          <div className="hero-info">
+            <span>Heute geöffnet · {site.hoursToday}</span>
+            <span>
+              {site.street}, {site.city}
+            </span>
           </div>
         </div>
 
         <div className="hero-visual">
-          <img
-            src={heroImage}
-            alt="Kuchen und feines Gebäck in einer Konditorei"
-          />
+          <div className="hero-photo">
+            {/* Above the fold on desktop: loaded eagerly with high priority. */}
+            <picture>
+              <source
+                type="image/avif"
+                srcSet={`${heroAvif800} 800w, ${heroAvif1180} 1180w`}
+                sizes="(min-width: 1296px) 600px, (min-width: 700px) 46vw, 92vw"
+              />
+              <img
+                src={heroFallback}
+                alt="Tortentheke im Café Stecker"
+                width={1180}
+                height={1086}
+                fetchPriority="high"
+              />
+            </picture>
+          </div>
 
-          {/* Interactive coffee doodle */}
-          <button
-            type="button"
-            className="hero-doodle hero-doodle--coffee"
-            aria-label="Kaffee-Doodle: Details anzeigen"
-            aria-expanded={activeDoodle === 'coffee'}
-            onClick={() => toggleDoodle('coffee')}
-          >
-            <svg viewBox="0 0 64 64" aria-hidden="true">
-              <path d="M13 24h32v14a12 12 0 0 1-12 12h-8a12 12 0 0 1-12-12Z" />
-              <path d="M45 29h4a7 7 0 0 1 0 14h-5" />
-              <path d="M20 17c-5-5 4-7 0-12" />
-              <path d="M31 17c-5-5 4-7 0-12" />
-              <path d="M10 53h40" />
-              <path d="M20 29c3 4 7 4 10 0s7-4 10 0" />
+          <div className="hero-badge">
+            <svg
+              className="hero-badge-ring"
+              aria-hidden="true"
+              viewBox="0 0 132 132"
+              width="132"
+              height="132"
+            >
+              <defs>
+                <path
+                  id="hero-badge-path"
+                  d="M66 66 m-52 0 a52 52 0 1 1 104 0 a52 52 0 1 1 -104 0"
+                />
+              </defs>
+              <text>
+                {/* textLength spreads the words evenly around the full circle. */}
+                <textPath href="#hero-badge-path" textLength="322">
+                  KONDITOREI · CAFÉ · STECKER · BREMEN ·
+                </textPath>
+              </text>
             </svg>
-
-            {activeDoodle === 'coffee' && (
-              <span className="hero-doodle-note" role="status">
-                Eine kleine Pause mit gutem Kaffee ☕
-              </span>
-            )}
-          </button>
-
-          {/* Interactive cake doodle */}
-          <button
-            type="button"
-            className="hero-doodle hero-doodle--cake"
-            aria-label="Kuchen-Doodle: Details anzeigen"
-            aria-expanded={activeDoodle === 'cake'}
-            onClick={() => toggleDoodle('cake')}
-          >
-            <svg viewBox="0 0 64 64" aria-hidden="true">
-              <path d="m10 36 35-19 9 29-35 10Z" />
-              <path d="m10 36 35-19-3-7-35 19Z" />
-              <path d="m19 56-2-7 35-19" />
-              <path d="M16 29c4-5 7 3 11-2s7 2 11-3" />
-              <path d="M25 23v5M36 17v5M44 30l4 3" />
-              <path d="M18 59h36" />
-            </svg>
-
-            {activeDoodle === 'cake' && (
-              <span className="hero-doodle-note" role="status">
-                Mit Liebe gebacken, Stück für Stück.
-              </span>
-            )}
-          </button>
-
-          {/* Interactive wheat doodle */}
-          <button
-            type="button"
-            className="hero-doodle hero-doodle--wheat"
-            aria-label="Handwerk-Doodle: Details anzeigen"
-            aria-expanded={activeDoodle === 'wheat'}
-            onClick={() => toggleDoodle('wheat')}
-          >
-            <svg viewBox="0 0 64 64" aria-hidden="true">
-              <path d="M15 54C28 42 36 27 42 9" />
-              <path d="M24 43c-9 0-14-5-14-12 9 0 14 5 14 12Z" />
-              <path d="M30 33c-8-2-12-8-10-15 9 3 13 8 10 15Z" />
-              <path d="M36 22c-7-4-9-10-5-16 8 5 10 10 5 16Z" />
-              <path d="M25 43c7-1 12-5 13-12-8 1-12 5-13 12Z" />
-              <path d="M33 28c7-3 10-9 8-15-8 3-10 8-8 15Z" />
-              <path d="M11 56h31" />
-            </svg>
-
-            {activeDoodle === 'wheat' && (
-              <span className="hero-doodle-note" role="status">
-                Tradition und echtes Konditorhandwerk.
-              </span>
-            )}
-          </button>
-
-          {/* Feature card to fill the whitespace on the right */}
-          <a
-            href="#spezialitaeten"
-            className="hero-side-note"
-            aria-label="Unsere Spezialitäten entdecken"
-          >
-            <span className="hero-side-note-mark" aria-hidden="true">
-              ✳
+            <span className="hero-badge-year">
+              <span className="visually-hidden">seit </span>1908
             </span>
-
-            <span className="hero-side-note-eyebrow">
-              AUS DER BACKSTUBE
-            </span>
-
-            <strong>Mit Liebe gemacht.</strong>
-
-            <span className="hero-side-note-bottom">
-              Kuchen, Kaffee und Gebäck <span aria-hidden="true">↗</span>
-            </span>
-          </a>
+          </div>
         </div>
-      </div>
-
-      <div className="hero-footer">
-        <p className="hero-trust">
-          FEINE KÖSTLICHKEITEN&nbsp; · &nbsp;AROMATISCHER KAFFEE&nbsp; ·
-          &nbsp;FRISCHE BACKWAREN
-        </p>
       </div>
     </section>
   )

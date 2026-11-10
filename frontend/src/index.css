@@ -1,26 +1,39 @@
 
 :root {
-  /* Brand colors */
-  --text: #5f554d;
-  --text-h: #302722;
+  /* Colours */
   --bg: #fbf8f3;
   --surface: #f3ede5;
   --border: #e6ddd2;
-  --accent: #986c46;
-  --accent-hover: #795335;
+  --border-strong: #cfc3b5;
+  --text-h: #302722;
+  --text: #5f554d;
+  --accent: #795335;
+  --dark: #2a1f1a;
+  --on-dark: #f3ede5;
+  --on-dark-muted: #d8cdc0;
+  --gold: #d9b68c;
+  --logo-blue: #5d829c;
 
   /* Typography */
-  --sans: 'Segoe UI', Roboto, Arial, sans-serif;
-  --heading: Georgia, 'Times New Roman', serif;
+  --sans: 'Instrument Sans Variable', system-ui, -apple-system, 'Segoe UI',
+    Roboto, Arial, sans-serif;
+  --heading: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+  --fs-hero: clamp(48px, 8.8vw, 132px);
+  --fs-h2: clamp(38px, 5.4vw, 80px);
+  --fs-eyebrow: 13px;
 
   /* Layout */
-  --container-width: 1200px;
-  --page-gutter: 24px;
+  --container-width: 1296px;
+  --page-gutter: clamp(20px, 4vw, 56px);
+  --section-space: clamp(72px, 9vw, 136px);
+  --radius-pill: 999px;
+  --touch: 44px;
+  /* Height of the sticky header: logo + padding + border. */
+  --header-h: 83px;
 
   font-family: var(--sans);
   font-size: 16px;
   line-height: 1.6;
-  letter-spacing: 0.01em;
   color: var(--text);
   background: var(--bg);
   color-scheme: light;
@@ -35,6 +48,17 @@
   box-sizing: border-box;
 }
 
+/* Anchor targets stop below the sticky header. */
+html {
+  scroll-padding-top: var(--header-h);
+}
+
+@media (max-width: 400px) {
+  :root {
+    --header-h: 71px;
+  }
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -47,6 +71,33 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+}
+
+/* Page content grows so the footer sits at the bottom on short pages. */
+#inhalt {
+  flex: 1;
+  width: 100%;
+}
+
+#inhalt:focus {
+  outline: none;
+}
+
+/* Shown for a moment while a page chunk loads; keeps the footer from
+   jumping up to the header. */
+.route-loading {
+  min-height: 100vh;
+}
+
+/* A photo that has not started loading yet shows nothing (no alt text
+   flashing inside its frame). */
+img:not([src]) {
+  visibility: hidden;
+}
+
+/* A <picture> only chooses the file; the <img> inside is what gets sized. */
+picture {
+  display: contents;
 }
 
 h1,
@@ -78,4 +129,192 @@ p {
 
 img {
   max-width: 100%;
+}
+
+/* Shared container: max 1296px with fluid side padding. */
+.container {
+  width: 100%;
+  max-width: var(--container-width);
+  margin-right: auto;
+  margin-left: auto;
+  padding-right: var(--page-gutter);
+  padding-left: var(--page-gutter);
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--sans);
+  font-size: var(--fs-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* Section headline with the emphasised word in italic accent. */
+.section-title {
+  margin: 0;
+  font-size: var(--fs-h2);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.section-title em,
+h1 em {
+  color: var(--accent);
+  font-weight: 300;
+}
+
+/* Pill buttons and text links, at least 44px high. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--touch);
+  padding: 17px 28px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+/* The same pill on a real <button>. */
+button.btn {
+  border: 0;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.btn--accent {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn--accent:hover {
+  background: var(--text-h);
+}
+
+.btn--dark {
+  background: var(--text-h);
+  color: var(--bg);
+}
+
+.btn--dark:hover {
+  background: var(--accent);
+}
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--touch);
+  color: var(--text-h);
+  font-weight: 600;
+  text-underline-offset: 6px;
+}
+
+.text-link:hover {
+  color: var(--accent);
+}
+
+.arrow {
+  flex: 0 0 auto;
+  transition: transform 0.3s ease;
+}
+
+.btn:hover .arrow,
+.text-link:hover .arrow {
+  transform: translateX(6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .arrow {
+    transition: none;
+  }
+}
+
+/* Visible keyboard focus everywhere. Dark sections override the colour. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Skip link: first focusable element on every page. */
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 20px;
+  border-radius: var(--radius-pill);
+  background: var(--text-h);
+  color: var(--bg);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Smooth scrolling (Lenis, see utils/smoothScroll.ts). These are the
+   rules from the library's own stylesheet, kept here so that pages do not
+   have to fetch one more small file before they can show. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+/* While the page is gliding, a video or map must not swallow the wheel. */
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* Short entrance for the first screen of a page. Runs once on load and is
+   pure CSS, so the content also appears when JavaScript fails.
+   --load-step (0, 1, 2 …) staggers neighbours. */
+@keyframes load-in {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+}
+
+/* For photos: moves without fading, so the photo paints at once. */
+@keyframes load-in-move {
+  from {
+    transform: translateY(32px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .load-in,
+  .load-in-move {
+    animation: load-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(var(--load-step, 0) * 120ms);
+  }
+
+  .load-in-move {
+    animation-name: load-in-move;
+  }
 }

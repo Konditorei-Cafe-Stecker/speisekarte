@@ -25,10 +25,13 @@ football matches and nearby events, followed by offer recommendations.
   and city events (`weather_hourly`, `local_events`).
 - A reproducible synthetic order history for Nov 2025 – Oct 2026, generated
   from the real menu and context. See [docs/synthetic-data.md](docs/synthetic-data.md).
+- First analysis: SQL views, data-quality checks and a Python report with
+  charts and an hourly demand model. See [analysis/README.md](analysis/README.md).
 
 Selected quantities and the last submitted order are kept in the browser tab's
 `sessionStorage`. Saved orders live in PostgreSQL.
-Order QR codes, the waiter screens, staff access and the analysis itself are planned.
+Order QR codes, the waiter screens, staff access, forecasts and offer
+recommendations are planned.
 
 ## Project structure
 
@@ -37,6 +40,10 @@ Order QR codes, the waiter screens, staff access and the analysis itself are pla
 | `frontend/` | React, TypeScript and Vite application |
 | `backend/` | Java and Spring Boot application |
 | `backend/src/main/resources/db/` | Manually executed SQL scripts |
+| `backend/src/main/resources/context/` | Real Bremen weather, football and event data (CSV) |
+| `analysis/` | SQL views, quality checks and the Python analysis report |
+| `scripts/` | Download script for the context data |
+| `docs/` | Synthetic data: sources, assumptions, how to run |
 | `README.md` | Project description and local setup |
 
 ## Requirements

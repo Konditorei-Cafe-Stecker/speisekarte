@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
-import { AdminError, fetchAdminForecast } from '../api/admin'
-import type { AdminForecast, ForecastDay, StaffingInput } from '../api/admin'
-import { formatEuro } from '../utils/format'
-import { readSession, removeSession, writeSession } from '../utils/sessionStore'
-import './Admin.css'
-
-const TOKEN_KEY = 'stecker.admin.token'
+import { formatEuro } from '../../utils/format'
+import {
+  ApiError,
+  staffApi,
+  type AdminForecast,
+  type ForecastDay,
+  type StaffingInput,
+} from '../api'
+import { usePageTitle } from '../usePageTitle'
+import '../Planning.css'
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17]
 
 const dayFormatter = new Intl.DateTimeFormat('de-DE', {
@@ -36,92 +38,54 @@ function formatTemperature(day: ForecastDay) {
   return `${Math.round(day.tempMin)} bis ${Math.round(day.tempMax)} °C`
 }
 
-function useNoIndex() {
-  useEffect(() => {
-    const meta = document.createElement('meta')
-    meta.name = 'robots'
-    meta.content = 'noindex, nofollow'
-    document.head.appendChild(meta)
-    return () => meta.remove()
-  }, [])
-}
-
-function Admin() {
-  useNoIndex()
-  const [token, setToken] = useState<string | null>(() =>
-    readSession(TOKEN_KEY, (value) => (typeof value === 'string' ? value : null)),
-  )
+/** Admins: expected revenue, staff per hour and product needs for 7 days. */
+function StaffPlanning() {
+  usePageTitle('Planung')
   const [staffing, setStaffing] = useState<StaffingInput>({ ordersPerStaffHour: 6, minStaff: 2 })
   const [forecast, setForecast] = useState<AdminForecast | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!token) return
-    const controller = new AbortController()
+    let active = true
     // Wait briefly so typing in the staffing fields does not send a request per key.
     const timer = window.setTimeout(() => {
       setLoading(true)
-      fetchAdminForecast(token, staffing, controller.signal)
+      staffApi
+        .forecast(staffing)
         .then((data) => {
+          if (!active) return
           setForecast(data)
           setError(null)
         })
         .catch((reason: unknown) => {
-          if (controller.signal.aborted) return
-          if (reason instanceof AdminError && reason.status === 401) {
-            removeSession(TOKEN_KEY)
-            setToken(null)
-          }
-          setError(reason instanceof Error ? reason.message : 'Unbekannter Fehler.')
+          if (!active) return
+          setError(reason instanceof ApiError ? reason.message : 'Die Prognose konnte nicht geladen werden.')
         })
         .finally(() => {
-          if (!controller.signal.aborted) setLoading(false)
+          if (active) setLoading(false)
         })
     }, 300)
 
     return () => {
+      active = false
       window.clearTimeout(timer)
-      controller.abort()
     }
-  }, [token, staffing])
-
-  function logIn(code: string) {
-    writeSession(TOKEN_KEY, code)
-    setError(null)
-    setToken(code)
-  }
-
-  function logOut() {
-    removeSession(TOKEN_KEY)
-    setToken(null)
-    setForecast(null)
-  }
-
-  if (!token) {
-    return <Login error={error} onSubmit={logIn} />
-  }
+  }, [staffing])
 
   return (
-    <section className="admin container">
-      <header className="admin-header">
-        <div>
-          <p className="eyebrow">Planung</p>
-          <h1>
-            Die nächsten <em>7 Tage</em>
-          </h1>
-          {forecast && (
-            <p className="admin-meta">
-              Prognose vom {timestampFormatter.format(new Date(forecast.generatedAt))} ·{' '}
-              {longDayFormatter.format(parseDay(forecast.from))} bis{' '}
-              {longDayFormatter.format(parseDay(forecast.to))}
-            </p>
-          )}
-        </div>
-        <button type="button" className="btn btn--dark admin-logout" onClick={logOut}>
-          Abmelden
-        </button>
-      </header>
+    <section className="staff-page admin">
+      <p className="eyebrow">Planung</p>
+      <h1>
+        Die nächsten <em>7 Tage</em>
+      </h1>
+      {forecast && (
+        <p className="admin-meta">
+          Prognose vom {timestampFormatter.format(new Date(forecast.generatedAt))} ·{' '}
+          {longDayFormatter.format(parseDay(forecast.from))} bis{' '}
+          {longDayFormatter.format(parseDay(forecast.to))}
+        </p>
+      )}
 
       {forecast?.basis === 'SYNTHETIC' && (
         <p className="admin-notice" role="note">
@@ -132,62 +96,25 @@ function Admin() {
       )}
 
       {error && (
-        <p className="admin-error" role="alert">
+        <p className="staff-error" role="alert">
           {error}
         </p>
       )}
 
-      {!forecast && !error && <p className="admin-loading">Prognose wird geladen …</p>}
+      {!forecast && !error && (
+        <p className="staff-loading" role="status">
+          Prognose wird geladen …
+        </p>
+      )}
 
       {forecast && (
         <div className={loading ? 'admin-body is-updating' : 'admin-body'}>
           <Summary forecast={forecast} />
           <Revenue days={forecast.days} />
-          <Staffing
-            forecast={forecast}
-            staffing={staffing}
-            onChange={setStaffing}
-          />
+          <Staffing forecast={forecast} staffing={staffing} onChange={setStaffing} />
           <Inventory forecast={forecast} />
         </div>
       )}
-    </section>
-  )
-}
-
-function Login({ error, onSubmit }: { error: string | null; onSubmit: (code: string) => void }) {
-  const [code, setCode] = useState('')
-
-  function submit(event: FormEvent) {
-    event.preventDefault()
-    if (code.trim()) onSubmit(code.trim())
-  }
-
-  return (
-    <section className="admin admin-login container">
-      <p className="eyebrow">Planung</p>
-      <h1>Anmelden</h1>
-      <form className="admin-login-form" onSubmit={submit}>
-        <label htmlFor="admin-code">Zugangscode</label>
-        <input
-          id="admin-code"
-          type="password"
-          autoComplete="current-password"
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-        />
-        <button type="submit" className="btn btn--accent">
-          Weiter
-        </button>
-      </form>
-      {error && (
-        <p className="admin-error" role="alert">
-          {error}
-        </p>
-      )}
-      <p className="admin-hint">
-        Der Code bleibt nur in diesem Browser-Tab gespeichert, bis er geschlossen wird.
-      </p>
     </section>
   )
 }
@@ -476,4 +403,4 @@ function Inventory({ forecast }: { forecast: AdminForecast }) {
   )
 }
 
-export default Admin
+export default StaffPlanning

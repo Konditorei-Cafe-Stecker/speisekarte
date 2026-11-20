@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar/Navbar'
 import Footer from './components/Footer/Footer'
 import ScrollToTop from './components/ScrollToTop/ScrollToTop'
-import { pages, preloadRoute, routes } from './routes'
+import { pages, preloadRoute, routes, staffArea as StaffArea } from './routes'
 
 // The page for the address the visitor arrived on starts loading as soon
 // as this file runs, in parallel with the first render of the header.
@@ -46,6 +46,22 @@ function App() {
     <BrowserRouter>
       <ScrollToTop />
 
+      <Routes>
+        {/* The staff area brings its own layout and sign-in. */}
+        <Route
+          path="/personal/*"
+          element={firstPageReady ? <StaffArea /> : <RouteLoading />}
+        />
+        <Route path="*" element={<PublicSite ready={firstPageReady} />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+/** Header, page and footer of the public website. */
+function PublicSite({ ready }: { ready: boolean }) {
+  return (
+    <>
       <a className="skip-link" href="#inhalt">
         Zum Inhalt springen
       </a>
@@ -53,7 +69,7 @@ function App() {
       <Navbar />
 
       <main id="inhalt" tabIndex={-1}>
-        {firstPageReady ? (
+        {ready ? (
           <Suspense fallback={<RouteLoading />}>
             <Routes>
               {routes.map(({ path, Page }) => (
@@ -67,7 +83,7 @@ function App() {
       </main>
 
       <Footer />
-    </BrowserRouter>
+    </>
   )
 }
 

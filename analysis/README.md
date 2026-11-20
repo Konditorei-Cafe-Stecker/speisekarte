@@ -81,7 +81,7 @@ python3 analysis/forecast_and_offers.py
 4. **Coming week.** Uses the real DWD forecast for Bremen and upcoming
    Werder home matches (needs internet; skip with `--no-upcoming`).
 5. **Publishing.** `--publish` also writes today + 6 days into the
-   forecast tables that the admin dashboard (`/admin`) reads: expected and
+   forecast tables that the admins' planning page (`/personal/planung`) reads: expected and
    likely-range orders and revenue per day, orders per hour, and expected
    units per product (product-group forecast × the product's share around
    the same time last year).

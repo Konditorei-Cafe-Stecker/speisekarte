@@ -191,7 +191,7 @@ class SyntheticOrderGeneratorTest {
 
     private static List<String> summary(List<GeneratedOrder> list) {
         return list.stream().map(o -> o.reference() + " " + o.createdAt() + " "
-                + o.confirmedAt() + " " + o.lines().stream()
+                + o.handledAt() + " " + o.lines().stream()
                 .map(l -> l.item().getName() + "×" + l.quantity()).toList()).toList();
     }
 

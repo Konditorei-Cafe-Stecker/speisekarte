@@ -54,8 +54,8 @@ public class AdminForecastService {
         List<ForecastDay> forecastDays = dayRepository.findByDayBetweenOrderByDayAsc(from, to);
         if (forecastDays.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "No forecast published for " + from + " – " + to + ". Run "
-                            + "python3 analysis/forecast_and_offers.py --publish");
+                    "Für " + from + " bis " + to + " gibt es noch keine Prognose. "
+                            + "Bitte python3 analysis/forecast_and_offers.py --publish ausführen.");
         }
 
         Map<LocalDate, List<ForecastHour>> hoursByDay = hourRepository

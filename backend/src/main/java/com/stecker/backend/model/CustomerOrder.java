@@ -3,83 +3,97 @@ package com.stecker.backend.model;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * A guest's order.
+ *
+ * It starts as PENDING. A waiter checks it with the guest, enters it into
+ * the café's till system and then confirms it here (CONFIRMED), possibly
+ * with changed quantities, or cancels it (CANCELLED). After that it can no
+ * longer change.
+ */
 @Entity
-@Table(
-        name = "customer_orders",
-        indexes = @Index(name = "idx_customer_orders_created_at", columnList = "createdAt"))
+@Table(name = "customer_orders")
 public class CustomerOrder {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Long random id; knowing it is what gives a guest access to the order. */
     @Column(nullable = false, unique = true, updatable = false)
     private UUID orderReference;
 
-    /**
-     * The exact moment the order was placed, stored in UTC.
-     * Reports convert it to Europe/Berlin time.
-     */
-    @Column(nullable = false, updatable = false)
-    private Instant createdAt;
+    /** Local time in Bremen (Europe/Berlin) when the guest sent the order. */
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;
 
     /**
-     * REAL for website orders, SYNTHETIC for generated history.
+     * REAL for orders placed through the website, SYNTHETIC for the
+     * simulated history used by the analysis. Reports keep them apart.
      */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, updatable = false, length = 20)
-    private DataSource dataSource;
-
-    /**
-     * When the waiter confirmed the order was entered into the
-     * official till. Empty while the order is still pending.
-     */
-    @Column
-    private Instant confirmedAt;
+    private DataSource dataSource = DataSource.REAL;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalPrice;
+
+    /** Short code for reading out; empty for orders saved before it existed. */
+    @Column(length = 8)
+    private String shortCode;
+
+    @Column(length = 300)
+    private String guestNote;
+
+    private Instant handledAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "handled_by_id")
+    private StaffAccount handledBy;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @OneToMany(
         mappedBy = "customerOrder",
         cascade = CascadeType.ALL,
         orphanRemoval = true
     )
+    @OrderBy("id")
     private List<OrderItem> items = new ArrayList<>();
 
     protected CustomerOrder() {
     }
 
-    /**
-     * Creates a new pending order placed through the website.
-     */
-    public CustomerOrder(BigDecimal totalPrice) {
+    public CustomerOrder(String shortCode, String guestNote, LocalDateTime createdAt) {
         this.orderReference = UUID.randomUUID();
-        this.createdAt = Instant.now();
+        this.createdAt = createdAt;
         this.status = OrderStatus.PENDING;
-        this.dataSource = DataSource.REAL;
-        this.totalPrice = totalPrice;
+        this.totalPrice = BigDecimal.ZERO;
+        this.shortCode = shortCode;
+        this.guestNote = guestNote;
     }
 
     /**
-     * Creates an order for the simulated order history.
-     * Only the synthetic data generator should call this.
+     * An order for the simulated history. Only the synthetic data generator
+     * calls this.
      *
      * @param orderReference reproducible reference derived from the seed
-     * @param createdAt      simulated moment the order was placed
+     * @param createdAt      simulated local time in Bremen
      */
-    public static CustomerOrder synthetic(UUID orderReference, Instant createdAt) {
-        CustomerOrder order = new CustomerOrder(BigDecimal.ZERO);
+    public static CustomerOrder synthetic(UUID orderReference, LocalDateTime createdAt) {
+        CustomerOrder order = new CustomerOrder(null, null, createdAt);
         order.orderReference = orderReference;
-        order.createdAt = createdAt;
         order.dataSource = DataSource.SYNTHETIC;
         return order;
     }
@@ -88,29 +102,29 @@ public class CustomerOrder {
         items.add(item);
     }
 
-    /**
-     * Replaces all order lines, for example after the waiter edits the
-     * order with the guest. Removed lines are deleted from the database.
-     */
-    public void replaceItems(List<OrderItem> newItems, BigDecimal newTotal) {
-        items.clear();
-        items.addAll(newItems);
-        this.totalPrice = newTotal;
+    /** Adds up the lines again, after quantities changed. */
+    public void recalculateTotal() {
+        totalPrice = items.stream()
+                .map(OrderItem::getLineTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    /** Waiter entered the order into the official till. */
-    public void confirm(Instant confirmedAt) {
-        this.status = OrderStatus.CONFIRMED;
-        this.confirmedAt = confirmedAt;
+    public boolean isOpen() {
+        return status == OrderStatus.PENDING;
     }
 
-    /** Order will not be served. */
-    public void cancel() {
-        this.status = OrderStatus.CANCELLED;
+    public void confirm(StaffAccount staff, Instant now) {
+        close(OrderStatus.CONFIRMED, staff, now);
     }
 
-    public void setTotalPrice(BigDecimal totalPrice) {
-        this.totalPrice = totalPrice;
+    public void cancel(StaffAccount staff, Instant now) {
+        close(OrderStatus.CANCELLED, staff, now);
+    }
+
+    private void close(OrderStatus newStatus, StaffAccount staff, Instant now) {
+        this.status = newStatus;
+        this.handledBy = staff;
+        this.handledAt = now;
     }
 
     public Long getId() {
@@ -121,7 +135,7 @@ public class CustomerOrder {
         return orderReference;
     }
 
-    public Instant getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
@@ -133,19 +147,27 @@ public class CustomerOrder {
         return dataSource;
     }
 
-    public Instant getConfirmedAt() {
-        return confirmedAt;
-    }
-
     public BigDecimal getTotalPrice() {
         return totalPrice;
     }
 
-    public List<OrderItem> getItems() {
-        return items;
+    public String getShortCode() {
+        return shortCode;
     }
 
-    public void setStatus(OrderStatus status) {
-        this.status = status;
+    public String getGuestNote() {
+        return guestNote;
+    }
+
+    public Instant getHandledAt() {
+        return handledAt;
+    }
+
+    public StaffAccount getHandledBy() {
+        return handledBy;
+    }
+
+    public List<OrderItem> getItems() {
+        return items;
     }
 }

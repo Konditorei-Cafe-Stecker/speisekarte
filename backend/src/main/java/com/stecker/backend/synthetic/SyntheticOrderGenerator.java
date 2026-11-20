@@ -40,11 +40,14 @@ public final class SyntheticOrderGenerator {
         }
     }
 
-    /** One generated order. confirmedAt is empty for cancelled orders. */
+    /**
+     * One generated order. handledAt is when the (simulated) waiter
+     * confirmed or cancelled it.
+     */
     public record GeneratedOrder(
             UUID reference,
             Instant createdAt,
-            Instant confirmedAt,
+            Instant handledAt,
             boolean cancelled,
             List<Line> lines
     ) {
@@ -224,7 +227,7 @@ public final class SyntheticOrderGenerator {
                 .toList();
 
         boolean cancelled = random.nextDouble() < CANCEL_PROBABILITY;
-        Instant confirmedAt = cancelled ? null : createdAt.plusSeconds(60L
+        Instant handledAt = createdAt.plusSeconds(60L
                 * (MIN_CONFIRM_DELAY_MINUTES
                 + random.nextInt(MAX_CONFIRM_DELAY_MINUTES - MIN_CONFIRM_DELAY_MINUTES + 1))
                 + random.nextInt(60));
@@ -233,7 +236,7 @@ public final class SyntheticOrderGenerator {
                 ("stecker-synthetic|" + seed + "|" + day + "|" + indexInDay)
                         .getBytes(StandardCharsets.UTF_8));
 
-        return new GeneratedOrder(reference, createdAt, confirmedAt, cancelled, lines);
+        return new GeneratedOrder(reference, createdAt, handledAt, cancelled, lines);
     }
 
     // ---- Footfall multipliers ----

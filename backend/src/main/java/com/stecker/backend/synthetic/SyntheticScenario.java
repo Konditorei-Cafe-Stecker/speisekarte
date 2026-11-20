@@ -202,7 +202,7 @@ public final class SyntheticScenario {
     // ---- Order outcome ----
 
     public static final double CANCEL_PROBABILITY = 0.03;
-    /** Waiter confirms 1–8 minutes after the order is placed. */
+    /** Waiter confirms or cancels 1–8 minutes after the order is placed. */
     public static final int MIN_CONFIRM_DELAY_MINUTES = 1;
     public static final int MAX_CONFIRM_DELAY_MINUTES = 8;
 }

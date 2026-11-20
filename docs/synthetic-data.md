@@ -41,10 +41,10 @@ The analysis should be able to find these again:
 | Freimarktsumzug | ×1.30 guests |
 | Strawberries | Products with "Erdbeer" sell ×0.2 outside May–August |
 | Product popularity | Fixed shares per subcategory plus staples (Filterkaffee, Cappuccino, …) |
-| Cancellations | 3 % of orders; the rest are confirmed 1–8 minutes after ordering |
+| Cancellations | 3 % of orders; the rest are confirmed. Both happen 1–8 minutes after ordering (`handled_at`, without a staff account) |
 
-With seed `20261120` the run creates **15,681 orders** (15,211 confirmed,
-470 cancelled) with 37,881 order lines; the average confirmed order is
+With seed `20261120` the run creates **15,770 orders** (15,307 confirmed,
+463 cancelled) with 38,274 order lines; the average confirmed order is
 about 15 €.
 
 ## Tables
@@ -55,8 +55,11 @@ about 15 €.
 | `weather_hourly` | One row per hour, `observed_at` = start of the hour (UTC) |
 | `local_events` | Football matches (`type = 'FOOTBALL'`, kickoff → +2 h) and city events (whole local days) |
 
-All times are stored as UTC (`timestamp with time zone`). Convert with
-`at time zone 'Europe/Berlin'` for local hours.
+Order times (`customer_orders.created_at`) are Bremen local time, like
+orders from the website. `handled_at`, weather and events are UTC
+(`timestamp with time zone`). The views in `analysis/sql/01_views.sql`
+provide both; for your own SQL, `created_at AT TIME ZONE 'Europe/Berlin'`
+turns the local time into a UTC moment.
 
 Example — ice-cream share by measured temperature:
 
@@ -67,7 +70,8 @@ select width_bucket(w.temperature_c, -10, 40, 10) as temperature_band,
 from order_items oi
 join customer_orders o on o.id = oi.order_id
 join menu_items m on m.id = oi.menu_item_id
-join weather_hourly w on w.observed_at = date_trunc('hour', o.created_at)
+join weather_hourly w
+  on w.observed_at = date_trunc('hour', o.created_at at time zone 'Europe/Berlin')
 where o.status = 'CONFIRMED' and o.data_source = 'SYNTHETIC'
 group by 1 order by 1;
 ```
@@ -78,8 +82,9 @@ with `count(distinct o.id)`, so totals are not counted twice.
 
 ## Running the generator
 
-The menu must be imported first (see the README). Then, from `backend/`
-with `STECKER_DB_PASSWORD` set as for the normal backend:
+The menu must be imported first (see the README). Flyway creates the
+tables. Then, from `backend/` with `STECKER_DB_PASSWORD` set as for the
+normal backend:
 
 ```bash
 ./gradlew bootRun --args='--spring.profiles.active=local,synthetic'

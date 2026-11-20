@@ -17,9 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -112,23 +112,25 @@ public class SyntheticOrderService {
 
         for (int i = 0; i < orders.size(); i++) {
             GeneratedOrder generated = orders.get(i);
+            // Orders store Bremen local time, like orders from the website.
             CustomerOrder order = CustomerOrder.synthetic(
-                    generated.reference(), generated.createdAt());
+                    generated.reference(),
+                    LocalDateTime.ofInstant(generated.createdAt(), SyntheticScenario.ZONE));
 
-            List<OrderItem> items = new ArrayList<>();
             for (Line line : generated.lines()) {
-                items.add(new OrderItem(order, line.item(), line.quantity()));
+                order.addItem(new OrderItem(order, line.item(), line.quantity()));
             }
-            order.replaceItems(items, generated.total());
+            order.recalculateTotal();
 
+            // No staff account handled simulated orders, so handledBy stays empty.
             if (generated.cancelled()) {
-                order.cancel();
+                order.cancel(null, generated.handledAt());
             } else {
-                order.confirm(generated.confirmedAt());
+                order.confirm(null, generated.handledAt());
                 confirmed++;
                 revenue = revenue.add(generated.total());
             }
-            lines += items.size();
+            lines += generated.lines().size();
 
             entityManager.persist(order);
             if ((i + 1) % FLUSH_EVERY == 0) {
@@ -161,11 +163,8 @@ public class SyntheticOrderService {
             require(order.lines().stream().allMatch(l -> l.item().isAvailable()),
                     order, "contains an unavailable product");
             require(order.total().signum() > 0, order, "has no positive total");
-            require(order.cancelled() == (order.confirmedAt() == null),
-                    order, "has an inconsistent confirmation");
-            require(order.confirmedAt() == null
-                            || order.confirmedAt().isAfter(order.createdAt()),
-                    order, "is confirmed before it was placed");
+            require(order.handledAt() != null && order.handledAt().isAfter(order.createdAt()),
+                    order, "is handled before it was placed");
             require(references.add(order.reference()), order, "has a duplicate reference");
         }
     }

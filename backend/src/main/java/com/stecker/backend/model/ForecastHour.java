@@ -5,15 +5,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.time.LocalDate;
 
 /** Forecast orders for one opening hour (local time). */
 @Entity
-@Table(name = "forecast_hours",
-        indexes = @Index(name = "idx_forecast_hours_day", columnList = "forecast_day"))
+@Table(name = "forecast_hours")
 public class ForecastHour {
 
     @Id

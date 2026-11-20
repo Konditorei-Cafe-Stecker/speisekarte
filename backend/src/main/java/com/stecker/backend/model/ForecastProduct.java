@@ -5,7 +5,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
@@ -13,8 +12,7 @@ import java.time.LocalDate;
 
 /** Expected units of one product on one day. */
 @Entity
-@Table(name = "forecast_products",
-        indexes = @Index(name = "idx_forecast_products_day", columnList = "forecast_day"))
+@Table(name = "forecast_products")
 public class ForecastProduct {
 
     @Id

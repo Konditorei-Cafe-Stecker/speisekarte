@@ -14,7 +14,7 @@ import java.time.ZoneId;
 
 /**
  * Admin API for the owner's planning dashboard.
- * Every request needs the X-Admin-Token header (see AdminTokenInterceptor).
+ * Admins only: SecurityConfig limits /api/admin/** to the ADMIN role.
  */
 @RestController
 @RequestMapping("/api/admin")
@@ -48,15 +48,15 @@ public class AdminController {
         double perStaff = ordersPerStaffHour != null ? ordersPerStaffHour : defaultOrdersPerStaffHour;
         int minimum = minStaff != null ? minStaff : defaultMinStaff;
         if (days < 1 || days > 14) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "days must be 1–14.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Es können 1 bis 14 Tage angezeigt werden.");
         }
         if (perStaff < 1 || perStaff > 50) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "ordersPerStaffHour must be between 1 and 50.");
+                    "Bestellungen pro Person und Stunde: bitte einen Wert von 1 bis 50.");
         }
         if (minimum < 0 || minimum > 20) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "minStaff must be between 0 and 20.");
+                    "Mindestbesetzung: bitte einen Wert von 0 bis 20.");
         }
         return forecastService.forecast(
                 from != null ? from : LocalDate.now(BERLIN),

@@ -1,8 +1,14 @@
 package com.stecker.backend.admin;
 
 import com.stecker.backend.model.ForecastDay;
+import com.stecker.backend.model.StaffAccount;
+import com.stecker.backend.model.StaffRole;
+import com.stecker.backend.repository.StaffAccountRepository;
+import com.stecker.backend.security.LoginAttemptLimiter;
 import com.stecker.backend.model.ForecastHour;
 import com.stecker.backend.model.ForecastProduct;
+import com.stecker.backend.model.MenuItem;
+import com.stecker.backend.repository.MenuRepository;
 import com.stecker.backend.repository.ForecastDayRepository;
 import com.stecker.backend.repository.ForecastHourRepository;
 import com.stecker.backend.repository.ForecastProductRepository;
@@ -12,6 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -20,11 +28,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "stecker.admin.token=test-token")
+/** The owner's planning API: admins only, through the real sign-in. */
+@SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class AdminControllerTest {
@@ -35,9 +46,27 @@ class AdminControllerTest {
     @Autowired private ForecastDayRepository dayRepository;
     @Autowired private ForecastHourRepository hourRepository;
     @Autowired private ForecastProductRepository productRepository;
+    @Autowired private StaffAccountRepository staffRepository;
+    @Autowired private MenuRepository menuRepository;
+    @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private LoginAttemptLimiter limiter;
+
+    private MockHttpSession admin;
+    private List<MenuItem> menu;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        staffRepository.deleteAll();
+        limiter.clear();
+        saveAccount("chefin", StaffRole.ADMIN, "chefin-test-passwort");
+        saveAccount("kellner", StaffRole.STAFF, "kellner-test-passwort");
+        admin = signIn("chefin", "chefin-test-passwort");
+        menu = menuRepository.saveAll(List.of(
+                new MenuItem(null, "Tasse Filterkaffee", null, new BigDecimal("3.50"), "Getränke", true),
+                new MenuItem(null, "Glühwein", null, new BigDecimal("5.50"), "Getränke", true)));
+        Long kaffee = menu.get(0).getId();
+        Long gluehwein = menu.get(1).getId();
+
         Instant generated = Instant.parse("2026-11-22T06:00:00Z");
         dayRepository.saveAll(List.of(
                 new ForecastDay(MONDAY, 45.2, 37, 54, new BigDecimal("690.00"),
@@ -52,11 +81,11 @@ class AdminControllerTest {
                 new ForecastHour(MONDAY, 15, 8.3, 13),
                 new ForecastHour(MONDAY.plusDays(1), 15, 8.0, 12)));
         productRepository.saveAll(List.of(
-                new ForecastProduct(MONDAY, 1L, "Tasse Filterkaffee", "Getränke", "Azul Kaffee",
+                new ForecastProduct(MONDAY, kaffee, "Tasse Filterkaffee", "Getränke", "Azul Kaffee",
                         new BigDecimal("3.50"), 10.0),
-                new ForecastProduct(MONDAY.plusDays(1), 1L, "Tasse Filterkaffee", "Getränke",
+                new ForecastProduct(MONDAY.plusDays(1), kaffee, "Tasse Filterkaffee", "Getränke",
                         "Azul Kaffee", new BigDecimal("3.50"), 12.0),
-                new ForecastProduct(MONDAY, 2L, "Glühwein", "Getränke", "Zum Aufwärmen",
+                new ForecastProduct(MONDAY, gluehwein, "Glühwein", "Getränke", "Zum Aufwärmen",
                         new BigDecimal("5.50"), 4.0)));
     }
 
@@ -65,20 +94,24 @@ class AdminControllerTest {
         productRepository.deleteAll();
         hourRepository.deleteAll();
         dayRepository.deleteAll();
+        menuRepository.deleteAll(menu);
+        staffRepository.deleteAll();
     }
 
     @Test
-    void refusesRequestsWithoutTheToken() throws Exception {
+    void isOnlyForSignedInAdmins() throws Exception {
         mockMvc.perform(get("/api/admin/forecast"))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/admin/forecast").header("X-Admin-Token", "wrong"))
-                .andExpect(status().isUnauthorized());
+
+        MockHttpSession waiter = signIn("kellner", "kellner-test-passwort");
+        mockMvc.perform(get("/api/admin/forecast").session(waiter))
+                .andExpect(status().isForbidden());
     }
 
     @Test
     void returnsRevenueStaffingAndProductNeeds() throws Exception {
         mockMvc.perform(get("/api/admin/forecast")
-                        .header("X-Admin-Token", "test-token")
+                        .session(admin)
                         .param("from", MONDAY.toString())
                         .param("days", "2"))
                 .andExpect(status().isOk())
@@ -105,7 +138,7 @@ class AdminControllerTest {
     @Test
     void staffingAssumptionCanBeChanged() throws Exception {
         mockMvc.perform(get("/api/admin/forecast")
-                        .header("X-Admin-Token", "test-token")
+                        .session(admin)
                         .param("from", MONDAY.toString())
                         .param("days", "1")
                         .param("ordersPerStaffHour", "4")
@@ -118,7 +151,7 @@ class AdminControllerTest {
     @Test
     void explainsWhenNoForecastIsPublished() throws Exception {
         mockMvc.perform(get("/api/admin/forecast")
-                        .header("X-Admin-Token", "test-token")
+                        .session(admin)
                         .param("from", "2030-01-01"))
                 .andExpect(status().isNotFound());
     }
@@ -126,8 +159,26 @@ class AdminControllerTest {
     @Test
     void rejectsUnreasonableSettings() throws Exception {
         mockMvc.perform(get("/api/admin/forecast")
-                        .header("X-Admin-Token", "test-token")
+                        .session(admin)
                         .param("days", "60"))
                 .andExpect(status().isBadRequest());
+    }
+
+    private void saveAccount(String username, StaffRole role, String password) {
+        StaffAccount account = new StaffAccount(
+                username, username, passwordEncoder.encode(password), role, Instant.now());
+        account.changePassword(account.getPasswordHash(), false, Instant.now().minusSeconds(60));
+        staffRepository.save(account);
+    }
+
+    private MockHttpSession signIn(String username, String password) throws Exception {
+        return (MockHttpSession) mockMvc.perform(post("/api/auth/login")
+                        .param("username", username)
+                        .param("password", password)
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getRequest()
+                .getSession(false);
     }
 }

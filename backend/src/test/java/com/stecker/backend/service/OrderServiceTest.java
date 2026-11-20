@@ -14,10 +14,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -133,5 +136,51 @@ class OrderServiceTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
         verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void confirmOrderRecordsConfirmationTime() {
+        Instant fixedNow = Instant.parse("2026-11-20T14:30:00Z");
+        OrderService serviceWithClock = new OrderService(
+                orderRepository, menuRepository,
+                Clock.fixed(fixedNow, ZoneOffset.UTC));
+
+        CustomerOrder order = new CustomerOrder(new BigDecimal("3.30"));
+        when(orderRepository.findByOrderReference(order.getOrderReference()))
+                .thenReturn(Optional.of(order));
+
+        var response = serviceWithClock.confirmOrder(order.getOrderReference());
+
+        assertEquals(OrderStatus.CONFIRMED, response.status());
+        assertEquals(fixedNow, response.confirmedAt());
+        assertEquals(fixedNow, order.getConfirmedAt());
+    }
+
+    @Test
+    void cancelledOrderCannotBeConfirmed() {
+        CustomerOrder order = new CustomerOrder(new BigDecimal("3.30"));
+        order.cancel();
+        when(orderRepository.findByOrderReference(order.getOrderReference()))
+                .thenReturn(Optional.of(order));
+
+        ResponseStatusException error = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.confirmOrder(order.getOrderReference()));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        assertNull(order.getConfirmedAt());
+    }
+
+    @Test
+    void unknownOrderReferenceIsNotFound() {
+        UUID unknown = UUID.randomUUID();
+        when(orderRepository.findByOrderReference(unknown))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException error = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.getOrder(unknown));
+
+        assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
     }
 }

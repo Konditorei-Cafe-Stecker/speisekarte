@@ -71,6 +71,27 @@ public class CustomerOrder {
         items.add(item);
     }
 
+    /**
+     * Replaces all order lines, for example after the waiter edits the
+     * order with the guest. Removed lines are deleted from the database.
+     */
+    public void replaceItems(List<OrderItem> newItems, BigDecimal newTotal) {
+        items.clear();
+        items.addAll(newItems);
+        this.totalPrice = newTotal;
+    }
+
+    /** Waiter entered the order into the official till. */
+    public void confirm(Instant confirmedAt) {
+        this.status = OrderStatus.CONFIRMED;
+        this.confirmedAt = confirmedAt;
+    }
+
+    /** Order will not be served. */
+    public void cancel() {
+        this.status = OrderStatus.CANCELLED;
+    }
+
     public void setTotalPrice(BigDecimal totalPrice) {
         this.totalPrice = totalPrice;
     }

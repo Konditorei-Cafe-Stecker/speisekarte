@@ -13,6 +13,7 @@ public record OrderResponse(
         UUID orderReference,
         Instant createdAt,
         OrderStatus status,
+        Instant confirmedAt,
         BigDecimal totalPrice,
         List<OrderItemResponse> items
 ) {
@@ -42,6 +43,7 @@ public record OrderResponse(
                 order.getOrderReference(),
                 order.getCreatedAt(),
                 order.getStatus(),
+                order.getConfirmedAt(),
                 order.getTotalPrice(),
                 items
         );

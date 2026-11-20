@@ -17,10 +17,14 @@ football matches and nearby events, followed by offer recommendations.
 - Categories, subcategories, descriptions, sizes, notes and availability.
 - Frontend menu loading, error handling and retry.
 - Quantity selection and a total calculated in integer cents.
-- Responsive product cards and a fixed total bar.
+- Menu search, category filters and an order review sheet.
+- Order saving through `POST /api/orders`, with prices taken from the database.
+- Waiter order API: open, edit, confirm and cancel an order by its reference.
+- Orders record their data source (`REAL` or `SYNTHETIC`) and confirmation time.
 
-Selections currently live in the menu page's state.
-Order saving, order QR codes, staff access and analytics are planned.
+Selected quantities and the last submitted order are kept in the browser tab's
+`sessionStorage`. Saved orders live in PostgreSQL.
+Order QR codes, the waiter screens, staff access and analytics are planned.
 
 ## Project structure
 
@@ -166,6 +170,34 @@ Production hosting will need its own API routing configuration.
 | `http://localhost:8080/api/menu` | Products from PostgreSQL |
 | `http://localhost:5173/api/menu` | Menu through the Vite development proxy |
 
+## Order API
+
+| Request | Purpose |
+|---|---|
+| `POST /api/orders` | Guest places an order (`PENDING`) |
+| `GET /api/orders/{reference}` | Waiter opens an order |
+| `PUT /api/orders/{reference}/items` | Waiter replaces the lines with the final products and quantities |
+| `POST /api/orders/{reference}/confirm` | Waiter confirms it was entered into the official till (`CONFIRMED`, sets `confirmedAt`) |
+| `POST /api/orders/{reference}/cancel` | Waiter cancels it (`CANCELLED`) |
+
+`POST` and `PUT` take the same body:
+
+```json
+{ "items": [ { "menuItemId": 6, "quantity": 2 } ] }
+```
+
+IDs are examples; use the IDs from `GET /api/menu`.
+Prices always come from the database, never from the request.
+
+Only `PENDING` orders can be edited, confirmed or cancelled.
+Otherwise the API answers `409 Conflict`. Unknown references give `404`.
+
+Times (`createdAt`, `confirmedAt`) are stored as UTC instants.
+Reports should convert them to Europe/Berlin.
+
+> The waiter endpoints have no staff login yet. Anyone who knows an order
+> reference can call them. Staff access must be added before real use.
+
 Menu records include:
 
 `id`, `name`, `description`, `price`, `category`, `subcategory`,
@@ -209,7 +241,9 @@ Manual frontend checks:
 4. Waiter adjusts the order and enters it into the official system.
 5. Waiter confirms the final quantities and prices in this website.
 
-Planned statuses: `PENDING`, `CONFIRMED` and `CANCELLED`.
+Statuses: `PENDING`, `CONFIRMED`, `CANCELLED`, and `COMPLETED`.
+`COMPLETED` exists in the code but its meaning has not been agreed yet;
+no endpoint sets it.
 
 Confirmation means the waiter has recorded the order in the official system.
 Payment information would require separate tracking.
@@ -241,6 +275,6 @@ Data and analytics work:
 - Analytics endpoints and chart data.
 
 Shared work:
-- Order database model and Spring Boot order API.
-- Staff access and server-side price handling.
+- Staff access for the waiter endpoints.
+- Agree the meaning of `COMPLETED`.
 - Review missing menu details and actual availability.

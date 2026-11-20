@@ -8,3 +8,4 @@ dist/
 
 # Generated analysis report and charts
 analysis/output/
+analysis/__pycache__/

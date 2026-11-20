@@ -11,7 +11,7 @@ the backend can generate a **reproducible simulated order history** for
 | Products, names, prices | **Real** — the imported menu (107 products) | `backend/src/main/resources/db/stecker_menu_import.sql` |
 | Hourly weather | **Real** — measured at DWD station *Bremen* (ID 00691) | Deutscher Wetterdienst Open Data via [Bright Sky](https://brightsky.dev) |
 | Werder Bremen home matches | **Real** — 17 matches in the Weserstadion with kickoff times and scores | [OpenLigaDB](https://www.openligadb.de) |
-| City events | **Real dates** — Freimarkt, Weihnachtsmarkt & Schlachte-Zauber, Osterwiese, Breminale, Freimarktsumzug | `events_bremen.csv`, one source link per row |
+| City events | **Real dates** — 21 events: Freimarkt, Weihnachtsmarkt & Schlachte-Zauber, Ansgari Winterwald, Osterwiese, Breminale, Freimarktsumzug and the large city-centre events (LA STRADA, CitySommerFest, Weinfest, Maritime Woche, Bürgerfest 3 Oct, swb-Marathon, CSD, …) | `events_bremen.csv`, one source link per row |
 | Opening hours | **Assumption** — the hours in `frontend/src/content/site.ts` for the whole year, closed on Bremen public holidays | — |
 | The orders themselves | **Simulated** — every order has `data_source = 'SYNTHETIC'` | `SyntheticOrderGenerator` |
 | How guests react to weather and events | **Simulated assumptions** | `SyntheticScenario` |
@@ -36,15 +36,15 @@ The analysis should be able to find these again:
 | Temperature → ice cream | Chance per guest 0.10 × e^(0.08·(T − 15 °C)), max 0.60 |
 | Temperature → drinks | Hot drinks fall, cold drinks rise with the hour's temperature |
 | Werder home match | 4 h to 30 min before kickoff: ×1.20 guests and ×2.5 alcohol; during the match ×0.85 |
-| Weihnachtsmarkt | ×1.30 guests, Glühwein ×4 (Glühwein only Nov–Feb) |
-| Freimarkt / Osterwiese / Breminale | ×1.10 guests |
-| Freimarktsumzug | ×1.30 guests |
+| Christmas markets (Weihnachtsmarkt, Winterwald after Christmas) | ×1.30 guests, Glühwein ×4 (Glühwein only Nov–Feb) |
+| Fairs and festivals (Freimarkt, Osterwiese, Breminale, LA STRADA, Weinfest, …) | ×1.10 guests |
+| Parades and runs (Freimarktsumzug, CSD, swb-Marathon) | ×1.30 guests |
 | Strawberries | Products with "Erdbeer" sell ×0.2 outside May–August |
 | Product popularity | Fixed shares per subcategory plus staples (Filterkaffee, Cappuccino, …) |
 | Cancellations | 3 % of orders; the rest are confirmed. Both happen 1–8 minutes after ordering (`handled_at`, without a staff account) |
 
-With seed `20261120` the run creates **15,770 orders** (15,307 confirmed,
-463 cancelled) with 38,274 order lines; the average confirmed order is
+With seed `20261120` the run creates **16,101 orders** (15,643 confirmed,
+458 cancelled) with 38,837 order lines; the average confirmed order is
 about 15 €.
 
 ## Tables
@@ -115,4 +115,8 @@ python3 scripts/fetch_context_data.py 2025-11-01 2026-10-31
 
 This rewrites `weather_bremen_hourly.csv` and `football_bremen.csv` in
 `backend/src/main/resources/context/`. `events_bremen.csv` is edited by hand;
-add a source link for every new row.
+add a source link for every new row. It lists the large events in and around
+the city centre; small listings (concerts, theatre, talks) are left out on
+purpose, because no source covers them evenly over the year. Overlapping
+rows multiply, so the Ansgari Winterwald is listed only for the days after
+the Weihnachtsmarkt row ends.

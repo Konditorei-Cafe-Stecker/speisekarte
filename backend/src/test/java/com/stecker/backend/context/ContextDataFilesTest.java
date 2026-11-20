@@ -57,7 +57,7 @@ class ContextDataFilesTest {
     void cityEventsHaveSourcesAndLocalDates() {
         List<LocalEvent> events = ContextDataImporter.readCityEvents();
 
-        assertEquals(6, events.size());
+        assertEquals(7, events.size());
         assertTrue(events.stream().allMatch(e -> e.getSource().startsWith("https://")));
 
         LocalEvent christmas = events.stream()

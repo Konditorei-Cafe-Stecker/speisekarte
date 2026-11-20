@@ -8,6 +8,8 @@ products, weather and football effects, and an hourly demand model.
 | `sql/01_views.sql` | Creates the `analytics` schema with `order_facts` (one row per order, local time, weather of that hour, event flags) and `order_line_facts` (one row per order line with category). Safe to run again. |
 | `sql/02_quality_checks.sql` | Data-quality checks; every "problems" count should be 0. |
 | `run_analysis.py` | Runs both SQL files, analyses the data and writes `output/report.md` plus charts. |
+| `forecast_and_offers.py` | Forecasts orders and product-group demand, tests them on a held-out period, derives offer rules and plans the coming week. Writes `output/forecast_report.md`. |
+| `common.py` | Shared code: psql access, opening calendar, event flags, chart style. |
 
 ## Run it
 
@@ -57,3 +59,24 @@ GROUP BY local_hour ORDER BY local_hour;
 
 With synthetic data, all results are **simulation results**; the report
 says so at the top.
+
+## Forecasts and offers
+
+```bash
+python3 analysis/forecast_and_offers.py
+```
+
+1. **Forecast test.** Models learn from 1 Nov 2025 – 31 Jul 2026 and are
+   scored on 1 Aug – 30 Oct 2026, which they have not seen
+   (`--test-start` changes the split). Three models are compared:
+   same weekday and hour over the last four weeks; hour + weekday; and
+   hour + weekday + weather + events + Werder matches.
+2. **Product groups.** Daily units of hot drinks, cold drinks, ice cream,
+   alcohol, breakfast and savoury dishes, with the estimated effect of
+   a 5 °C warmer day.
+3. **Offer rules.** Warm days, cold days, match days, Weihnachtsmarkt,
+   quiet mornings and products bought together, each with the numbers
+   behind it. No profit effect is claimed: costs and margins are unknown,
+   and offers are not yet tracked.
+4. **Coming week.** Uses the real DWD forecast for Bremen and upcoming
+   Werder home matches (needs internet; skip with `--no-upcoming`).

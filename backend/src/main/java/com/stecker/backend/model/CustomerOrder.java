@@ -2,11 +2,20 @@ package com.stecker.backend.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * A guest's order.
+ *
+ * It starts as PENDING. A waiter checks it with the guest, enters it into
+ * the café's till system and then confirms it here (CONFIRMED), possibly
+ * with changed quantities, or cancels it (CANCELLED). After that it can no
+ * longer change.
+ */
 @Entity
 @Table(name = "customer_orders")
 public class CustomerOrder {
@@ -15,9 +24,11 @@ public class CustomerOrder {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Long random id; knowing it is what gives a guest access to the order. */
     @Column(nullable = false, unique = true, updatable = false)
     private UUID orderReference;
 
+    /** Local time in Bremen (Europe/Berlin) when the guest sent the order. */
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -28,29 +39,70 @@ public class CustomerOrder {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalPrice;
 
+    /** Short code for reading out; empty for orders saved before it existed. */
+    @Column(length = 8)
+    private String shortCode;
+
+    @Column(length = 300)
+    private String guestNote;
+
+    private Instant handledAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "handled_by_id")
+    private StaffAccount handledBy;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
+
     @OneToMany(
         mappedBy = "customerOrder",
         cascade = CascadeType.ALL,
         orphanRemoval = true
     )
+    @OrderBy("id")
     private List<OrderItem> items = new ArrayList<>();
 
     protected CustomerOrder() {
     }
 
-    public CustomerOrder(BigDecimal totalPrice) {
+    public CustomerOrder(String shortCode, String guestNote, LocalDateTime createdAt) {
         this.orderReference = UUID.randomUUID();
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = createdAt;
         this.status = OrderStatus.PENDING;
-        this.totalPrice = totalPrice;
+        this.totalPrice = BigDecimal.ZERO;
+        this.shortCode = shortCode;
+        this.guestNote = guestNote;
     }
 
     public void addItem(OrderItem item) {
         items.add(item);
     }
 
-    public void setTotalPrice(BigDecimal totalPrice) {
-        this.totalPrice = totalPrice;
+    /** Adds up the lines again, after quantities changed. */
+    public void recalculateTotal() {
+        totalPrice = items.stream()
+                .map(OrderItem::getLineTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public boolean isOpen() {
+        return status == OrderStatus.PENDING;
+    }
+
+    public void confirm(StaffAccount staff, Instant now) {
+        close(OrderStatus.CONFIRMED, staff, now);
+    }
+
+    public void cancel(StaffAccount staff, Instant now) {
+        close(OrderStatus.CANCELLED, staff, now);
+    }
+
+    private void close(OrderStatus newStatus, StaffAccount staff, Instant now) {
+        this.status = newStatus;
+        this.handledBy = staff;
+        this.handledAt = now;
     }
 
     public Long getId() {
@@ -73,11 +125,23 @@ public class CustomerOrder {
         return totalPrice;
     }
 
-    public List<OrderItem> getItems() {
-        return items;
+    public String getShortCode() {
+        return shortCode;
     }
 
-    public void setStatus(OrderStatus status) {
-        this.status = status;
+    public String getGuestNote() {
+        return guestNote;
+    }
+
+    public Instant getHandledAt() {
+        return handledAt;
+    }
+
+    public StaffAccount getHandledBy() {
+        return handledBy;
+    }
+
+    public List<OrderItem> getItems() {
+        return items;
     }
 }

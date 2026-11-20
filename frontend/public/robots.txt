@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+# Staff area: sign-in only, nothing to index.
+Disallow: /personal

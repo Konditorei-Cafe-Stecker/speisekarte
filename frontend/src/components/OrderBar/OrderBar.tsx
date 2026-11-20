@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
-import type { OrderResponse } from '../../api/orders'
+import { MAX_NOTE_LENGTH, staffOrderUrl, type OrderResponse } from '../../api/orders'
 import { formatCents, formatEuro } from '../../utils/format'
+import OrderQrCode from '../OrderQrCode/OrderQrCode'
 import './OrderBar.css'
 
 export type OrderLine = {
@@ -20,6 +21,9 @@ type OrderBarProps = {
   error: string | null
   /** The last order that was sent successfully, if any. */
   completedOrder: OrderResponse | null
+  /** Wishes for the waiter, typed into the sheet before sending. */
+  note: string
+  onNoteChange: (note: string) => void
   onToggle: () => void
   onClose: () => void
   onClear: () => void
@@ -28,10 +32,23 @@ type OrderBarProps = {
 }
 
 const statusLabels: Record<OrderResponse['status'], string> = {
-  PENDING: 'Offen',
+  PENDING: 'Wartet auf die Bedienung',
   CONFIRMED: 'Bestätigt',
   COMPLETED: 'Abgeschlossen',
   CANCELLED: 'Storniert',
+}
+
+/** Heading of the confirmation and text of the pill, by status. */
+const confirmationTitles: Record<OrderResponse['status'], string> = {
+  PENDING: 'Bestellung gesendet',
+  CONFIRMED: 'Bestellung bestätigt',
+  COMPLETED: 'Bestellung abgeschlossen',
+  CANCELLED: 'Bestellung storniert',
+}
+
+/** "7KX4" reads better as "7K X4" from across a table. */
+function spacedCode(code: string) {
+  return code.length === 4 ? `${code.slice(0, 2)} ${code.slice(2)}` : code
 }
 
 function statusLabel(status: OrderResponse['status']) {
@@ -46,6 +63,8 @@ function OrderBar({
   submitting,
   error,
   completedOrder,
+  note,
+  onNoteChange,
   onToggle,
   onClose,
   onClear,
@@ -87,8 +106,8 @@ function OrderBar({
     <aside className="order-bar" aria-label="Deine Bestellung">
       <div className="order-pill">
         <p className="order-pill-text" role="status">
-          {showConfirmation ? (
-            <strong>Bestellung gesendet</strong>
+          {showConfirmation && completedOrder ? (
+            <strong>{confirmationTitles[completedOrder.status]}</strong>
           ) : (
             <>
               {count} Artikel · <strong>{formatCents(totalCents)}</strong>
@@ -111,19 +130,58 @@ function OrderBar({
       {open && showConfirmation && completedOrder && (
         <div id="order-sheet" className="order-sheet">
           <h2 ref={confirmationRef} tabIndex={-1}>
-            Bestellung gesendet
+            {confirmationTitles[completedOrder.status]}
           </h2>
 
-          <div className="order-confirmation">
-            <p>Zeig diese Nummer der Bedienung.</p>
-            <p className="order-number">
-              <span>Bestellnummer</span>
-              <strong>{completedOrder.orderReference}</strong>
+          {completedOrder.status === 'PENDING' && (
+            <div className="order-confirmation order-confirmation--code">
+              <p>
+                Zeig diesen Code der Bedienung. Sie scannt ihn oder tippt die
+                vier Zeichen ein.
+              </p>
+              <OrderQrCode
+                value={staffOrderUrl(completedOrder.orderReference)}
+                label={`QR-Code der Bestellung ${completedOrder.shortCode ?? ''}`}
+              />
+              {completedOrder.shortCode ? (
+                <p className="order-code">
+                  <span>Code</span>
+                  <strong aria-label={completedOrder.shortCode.split('').join(' ')}>
+                    {spacedCode(completedOrder.shortCode)}
+                  </strong>
+                </p>
+              ) : (
+                <p className="order-number">
+                  <span>Bestellnummer</span>
+                  <strong>{completedOrder.orderReference}</strong>
+                </p>
+              )}
+            </div>
+          )}
+
+          {completedOrder.status === 'CONFIRMED' && (
+            <p className="order-confirmation">
+              Die Bedienung hat deine Bestellung aufgenommen. Guten Appetit!
             </p>
-            <p>
-              Status: <strong>{statusLabel(completedOrder.status)}</strong>
+          )}
+
+          {completedOrder.status === 'CANCELLED' && (
+            <p className="order-confirmation">
+              Die Bestellung wurde storniert. Sprich bitte die Bedienung an,
+              falls das nicht stimmt.
             </p>
-          </div>
+          )}
+
+          <p className="order-status" role="status">
+            Status: <strong>{statusLabel(completedOrder.status)}</strong>
+          </p>
+
+          {completedOrder.note && (
+            <p className="order-note-sent">
+              <span>Deine Wünsche</span>
+              {completedOrder.note}
+            </p>
+          )}
 
           <ul className="order-lines">
             {completedOrder.items.map((item) => (
@@ -170,8 +228,11 @@ function OrderBar({
 
           {completedOrder && (
             <p className="order-previous">
-              Zuletzt gesendet: Nr. {completedOrder.orderReference} ·{' '}
-              {statusLabel(completedOrder.status)}
+              Zuletzt gesendet:{' '}
+              {completedOrder.shortCode
+                ? `Code ${completedOrder.shortCode}`
+                : `Nr. ${completedOrder.orderReference}`}{' '}
+              · {statusLabel(completedOrder.status)}
             </p>
           )}
 
@@ -187,6 +248,19 @@ function OrderBar({
               </li>
             ))}
           </ul>
+
+          <div className="order-note">
+            <label htmlFor="order-note">Wünsche an die Bedienung (optional)</label>
+            <textarea
+              id="order-note"
+              rows={2}
+              maxLength={MAX_NOTE_LENGTH}
+              placeholder="z. B. ohne Sahne, Hafermilch, alles zusammen bringen"
+              value={note}
+              disabled={submitting}
+              onChange={(event) => onNoteChange(event.target.value)}
+            />
+          </div>
 
           {error && (
             <p className="order-error" role="alert">

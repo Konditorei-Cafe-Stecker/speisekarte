@@ -179,6 +179,85 @@
   background: var(--surface);
 }
 
+.order-confirmation--code {
+  align-items: center;
+  text-align: center;
+}
+
+/* The QR code: dark on white with its own white margin, about 200px. */
+.order-qr {
+  display: block;
+  width: min(100%, 208px);
+  aspect-ratio: 1;
+  border-radius: 8px;
+}
+
+.order-qr--loading {
+  background: #fff;
+}
+
+.order-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.order-code span {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.order-code strong {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 38px;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+}
+
+.order-status {
+  font-size: 15px;
+}
+
+.order-note-sent {
+  display: flex;
+  flex-direction: column;
+  font-size: 15px;
+}
+
+.order-note-sent span,
+.order-note label {
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.order-note {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.order-note textarea {
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--text);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 16px;
+  resize: vertical;
+}
+
+.order-note textarea::placeholder {
+  color: var(--text);
+  opacity: 1;
+}
+
 .order-number {
   display: flex;
   flex-direction: column;

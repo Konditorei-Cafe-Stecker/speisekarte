@@ -6,13 +6,17 @@ import OrderBar from '../components/OrderBar/OrderBar'
 import type { OrderLine } from '../components/OrderBar/OrderBar'
 import { fetchMenuItems } from '../api/menu'
 import type { MenuItem } from '../api/menu'
-import { createOrder } from '../api/orders'
+import { createOrder, fetchOrder, OrderRequestError } from '../api/orders'
 import type { OrderResponse } from '../api/orders'
 import { formatCents, toCents } from '../utils/format'
 import { readSession, removeSession, writeSession } from '../utils/sessionStore'
 
 const QUANTITIES_KEY = 'stecker.menu.quantities'
 const LAST_ORDER_KEY = 'stecker.menu.lastOrder'
+
+/** How often the confirmation asks whether the waiter has confirmed. */
+const STATUS_FIRST_CHECK_MS = 4_000
+const STATUS_CHECK_MS = 10_000
 
 type Quantities = Record<number, number>
 
@@ -195,6 +199,7 @@ function Menu() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [orderError, setOrderError] = useState<string | null>(null)
+  const [note, setNote] = useState('')
   const [completedOrder, setCompletedOrder] = useState<OrderResponse | null>(
     () => readSession(LAST_ORDER_KEY, parseOrder),
   )
@@ -243,6 +248,62 @@ function Menu() {
       removeSession(LAST_ORDER_KEY)
     }
   }, [completedOrder])
+
+  // While the guest waits, check now and then whether the waiter has
+  // confirmed the order. Paused while the tab is in the background.
+  const waitingReference =
+    completedOrder?.status === 'PENDING' ? completedOrder.orderReference : null
+
+  useEffect(() => {
+    if (!waitingReference) return
+
+    const reference = waitingReference
+    const controller = new AbortController()
+    let timer = 0
+    let checking = false
+
+    function schedule(delay: number) {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(check, delay)
+    }
+
+    async function check() {
+      if (checking) return
+      if (document.visibilityState === 'hidden') {
+        schedule(STATUS_CHECK_MS)
+        return
+      }
+
+      checking = true
+      try {
+        const fresh = await fetchOrder(reference, controller.signal)
+        setCompletedOrder((current) =>
+          current?.orderReference === fresh.orderReference ? fresh : current,
+        )
+        if (fresh.status !== 'PENDING') return
+      } catch (requestError) {
+        if (controller.signal.aborted) return
+        // The order no longer exists: stop asking.
+        if (requestError instanceof OrderRequestError && requestError.status === 404) return
+      } finally {
+        checking = false
+      }
+      schedule(STATUS_CHECK_MS)
+    }
+
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') schedule(0)
+    }
+
+    schedule(STATUS_FIRST_CHECK_MS)
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      controller.abort()
+      window.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [waitingReference])
 
   const groups = useMemo(() => buildGroups(items), [items])
   const categories = useMemo(
@@ -381,17 +442,34 @@ function Menu() {
           menuItemId: line.id,
           quantity: line.quantity,
         })),
+        note: note.trim() || undefined,
       })
 
       setCompletedOrder(order)
       setQuantities({})
+      setNote('')
       setSheetOpen(true)
     } catch (requestError) {
-      // The raw server text is for developers, not for guests.
       console.error('Bestellung fehlgeschlagen:', requestError)
-      setOrderError(
-        'Die Bestellung konnte nicht gesendet werden. Bitte versuch es noch einmal oder gib der Bedienung Bescheid.',
-      )
+
+      // The backend explains refused orders in German (for example a
+      // product that just sold out); other failures get a general message.
+      const refused =
+        requestError instanceof OrderRequestError &&
+        requestError.detail &&
+        [400, 404, 409].includes(requestError.status)
+
+      if (refused) {
+        setOrderError(`${requestError.detail} Bitte passe deine Auswahl an.`)
+        // Show the current availability in the list.
+        fetchMenuItems()
+          .then(setItems)
+          .catch(() => {})
+      } else {
+        setOrderError(
+          'Die Bestellung konnte nicht gesendet werden. Bitte versuch es noch einmal oder gib der Bedienung Bescheid.',
+        )
+      }
     } finally {
       setSubmitting(false)
     }
@@ -562,6 +640,8 @@ function Menu() {
           submitting={submitting}
           error={orderError}
           completedOrder={completedOrder}
+          note={note}
+          onNoteChange={setNote}
           onToggle={() => setSheetOpen((open) => !open)}
           onClose={closeSheet}
           onClear={clearSelection}

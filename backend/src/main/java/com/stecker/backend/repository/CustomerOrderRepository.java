@@ -1,6 +1,10 @@
 package com.stecker.backend.repository;
 
 import com.stecker.backend.model.CustomerOrder;
+import com.stecker.backend.model.DataSource;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import com.stecker.backend.model.OrderStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -31,4 +35,20 @@ public interface CustomerOrderRepository
             String shortCode, OrderStatus status);
 
     boolean existsByShortCodeAndStatus(String shortCode, OrderStatus status);
+
+    long countByDataSource(DataSource dataSource);
+
+    /** Deletes the order lines of all orders from one data source. */
+    @Modifying
+    @Query("""
+            delete from OrderItem i
+            where i.customerOrder.id in (
+                select o.id from CustomerOrder o where o.dataSource = :source
+            )""")
+    int deleteItemsByDataSource(@Param("source") DataSource source);
+
+    /** Deletes all orders from one data source. Delete their items first. */
+    @Modifying
+    @Query("delete from CustomerOrder o where o.dataSource = :source")
+    int deleteOrdersByDataSource(@Param("source") DataSource source);
 }

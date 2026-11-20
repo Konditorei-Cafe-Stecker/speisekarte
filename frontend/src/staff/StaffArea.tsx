@@ -7,6 +7,7 @@ import StaffHome from './pages/StaffHome'
 import StaffLogin from './pages/StaffLogin'
 import StaffOrder from './pages/StaffOrder'
 import StaffPassword from './pages/StaffPassword'
+import StaffPlanning from './pages/StaffPlanning'
 import StaffTeam from './pages/StaffTeam'
 
 /**
@@ -34,6 +35,7 @@ function StaffArea() {
             <Route path="passwort" element={<StaffPassword />} />
             <Route element={<RequireAdmin />}>
               <Route path="team" element={<StaffTeam />} />
+              <Route path="planung" element={<StaffPlanning />} />
             </Route>
           </Route>
         </Route>

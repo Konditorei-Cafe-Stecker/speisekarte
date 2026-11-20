@@ -36,6 +36,7 @@ function StaffLayout() {
               <NavLink to="/personal" end>
                 Übersicht
               </NavLink>
+              {me.role === 'ADMIN' && <NavLink to="/personal/planung">Planung</NavLink>}
               {me.role === 'ADMIN' && <NavLink to="/personal/team">Team</NavLink>}
               <NavLink to="/personal/passwort">Passwort</NavLink>
             </nav>

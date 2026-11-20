@@ -7,8 +7,9 @@ The planned application lets customers prepare an order and show its QR
 code to a waiter. The waiter reviews the order, makes any changes, enters
 it into the official system, and confirms the final details in this website.
 
-Confirmed order data will support analysis by time, weather, temperature,
-football matches and nearby events, followed by offer recommendations.
+Confirmed order data supports analysis by time, weather, temperature,
+football matches and nearby events, forecasts and offer suggestions, and a
+planning page for the owner.
 
 ## Currently implemented
 
@@ -24,7 +25,16 @@ football matches and nearby events, followed by offer recommendations.
   waiter's order list and order page, confirmation and cancellation, and
   a live status on the guest's phone.
 
-Analytics are planned.
+- Orders record whether they are real (`REAL`) or simulated (`SYNTHETIC`).
+- Real Bremen context: hourly DWD weather, Werder Bremen home matches and
+  city events (`weather_hourly`, `local_events`), updated automatically
+  every day.
+- A reproducible synthetic order history for Nov 2025 – Oct 2026, generated
+  from the real menu and context. See [docs/synthetic-data.md](docs/synthetic-data.md).
+- Analysis, forecasts and offer suggestions: SQL views, data-quality
+  checks and Python reports. See [analysis/README.md](analysis/README.md).
+- Planning page for admins at `/personal/planung`: expected revenue,
+  service staff per hour and product needs for the next 7 days.
 
 ## Project structure
 
@@ -33,6 +43,11 @@ Analytics are planned.
 | `frontend/` | React, TypeScript and Vite application |
 | `backend/` | Java and Spring Boot application |
 | `backend/src/main/resources/db/` | Manually executed SQL scripts |
+| `backend/src/main/resources/db/migration/` | Flyway migrations |
+| `backend/src/main/resources/context/` | Real Bremen weather, football and event data (CSV) |
+| `analysis/` | SQL views, quality checks, analysis and forecast scripts |
+| `scripts/` | Download script for the context data |
+| `docs/` | Synthetic data: sources, assumptions, how to run |
 | `README.md` | Project description and local setup |
 
 ## Requirements
@@ -334,16 +349,61 @@ cancelled. If two waiters handle the same order, the second one gets a
 | `POST /api/staff/orders/{order}/confirm` | Confirm, optionally with `{"items": [...]}` as the final order |
 | `POST /api/staff/orders/{order}/cancel` | Cancel |
 
-## Planned analytics
+## Analytics and planning
 
-- Product quantities and confirmed order values by hour and weekday.
-- Comparisons across temperature, rain, football matches and nearby events.
-- Forecasts and offer suggestions with supporting data.
-- Reproducible synthetic historical orders for demonstration and evaluation.
+Generated orders are labelled `SYNTHETIC`, real ones `REAL`; reports keep
+them apart, and results from simulated data are called simulation results.
 
-Generated orders will be labelled `SYNTHETIC`.
-Real and synthetic data will be distinguishable in reports.
-Results from simulated data will be described as simulation results.
+- [docs/synthetic-data.md](docs/synthetic-data.md): what is real (menu,
+  weather, matches, events) and what is simulated, and how to generate
+  the history.
+- [analysis/README.md](analysis/README.md): data-quality checks, the
+  analysis report, forecasts and offer suggestions.
+
+### Daily context update
+
+While the backend runs, it adds the newest real context every morning at
+06:15 (Bremen time), and once right after each start, so days missed
+while it was off are filled in:
+
+- measured hourly weather from DWD station Bremen up to the last full hour
+  (the last two days are fetched again, because DWD may still correct them);
+- new, rescheduled and finished Werder Bremen home matches from OpenLigaDB.
+
+A new database first receives the committed year from
+`backend/src/main/resources/context/`. The update needs internet access;
+if it fails, the backend logs a warning and tries again next time. The log
+line starts with `Context update`. City events (Freimarkt,
+Weihnachtsmarkt, …) are still maintained by hand in `events_bremen.csv`.
+Switch it off with `stecker.context.daily-update.enabled=false`; change the
+time with `stecker.context.daily-update.cron`.
+
+### Planning page for admins
+
+`/personal/planung` (admins only, link "Planung" in the staff navigation)
+shows for today and the next 6 days:
+
+- **Umsatz:** expected revenue per day with a likely range, plus weather,
+  events, Werder home matches and suggested offers.
+- **Personalplanung:** service staff per hour, based on the busy case
+  (9 of 10 days are quieter) and an adjustable assumption of how many
+  orders one person handles per hour (default 6, minimum staff 2).
+- **Warenbedarf:** expected units per product for the week and a
+  busy-case amount. Ingredients need recipe data, which does not exist yet.
+
+The page reads a forecast that has to be published first. With the backend
+having started once (so Flyway created the tables) and `STECKER_DB_PASSWORD`
+set, from the repository root:
+
+```bash
+python3 analysis/forecast_and_offers.py --publish
+```
+
+This fetches the real DWD weather forecast and upcoming Werder matches and
+writes the next 7 days into `forecast_days`, `forecast_hours` and
+`forecast_products` (`GET /api/admin/forecast` reads them). Run it once a
+day. Older forecast days are kept, so forecasts can later be compared with
+what happened.
 
 ## Work split and remaining tasks
 
@@ -351,10 +411,10 @@ Frontend work:
 - Dashboard presentation, mobile checks and deployment.
 
 Data and analytics work:
-- Synthetic historical order generation.
-- Weather, match and nearby-event data.
-- Analysis, forecasting and offer recommendation logic.
-- Analytics endpoints and chart data.
+- Run the analysis on real orders once they exist, and compare published
+  forecasts with what happened.
+- Track which offer was active, so its effect can be measured.
+- Recipes per product, to turn product needs into ingredient amounts.
 
 Shared work:
 - Review missing menu details and actual availability.

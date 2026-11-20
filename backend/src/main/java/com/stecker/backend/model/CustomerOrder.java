@@ -36,6 +36,14 @@ public class CustomerOrder {
     @Column(nullable = false)
     private OrderStatus status;
 
+    /**
+     * REAL for orders placed through the website, SYNTHETIC for the
+     * simulated history used by the analysis. Reports keep them apart.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false, length = 20)
+    private DataSource dataSource = DataSource.REAL;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalPrice;
 
@@ -74,6 +82,20 @@ public class CustomerOrder {
         this.totalPrice = BigDecimal.ZERO;
         this.shortCode = shortCode;
         this.guestNote = guestNote;
+    }
+
+    /**
+     * An order for the simulated history. Only the synthetic data generator
+     * calls this.
+     *
+     * @param orderReference reproducible reference derived from the seed
+     * @param createdAt      simulated local time in Bremen
+     */
+    public static CustomerOrder synthetic(UUID orderReference, LocalDateTime createdAt) {
+        CustomerOrder order = new CustomerOrder(null, null, createdAt);
+        order.orderReference = orderReference;
+        order.dataSource = DataSource.SYNTHETIC;
+        return order;
     }
 
     public void addItem(OrderItem item) {
@@ -119,6 +141,10 @@ public class CustomerOrder {
 
     public OrderStatus getStatus() {
         return status;
+    }
+
+    public DataSource getDataSource() {
+        return dataSource;
     }
 
     public BigDecimal getTotalPrice() {

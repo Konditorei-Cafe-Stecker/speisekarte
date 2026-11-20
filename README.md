@@ -27,7 +27,8 @@ planning page for the owner.
 
 - Orders record whether they are real (`REAL`) or simulated (`SYNTHETIC`).
 - Real Bremen context: hourly DWD weather, Werder Bremen home matches and
-  city events (`weather_hourly`, `local_events`).
+  city events (`weather_hourly`, `local_events`), updated automatically
+  every day.
 - A reproducible synthetic order history for Nov 2025 – Oct 2026, generated
   from the real menu and context. See [docs/synthetic-data.md](docs/synthetic-data.md).
 - Analysis, forecasts and offer suggestions: SQL views, data-quality
@@ -358,6 +359,24 @@ them apart, and results from simulated data are called simulation results.
   the history.
 - [analysis/README.md](analysis/README.md): data-quality checks, the
   analysis report, forecasts and offer suggestions.
+
+### Daily context update
+
+While the backend runs, it adds the newest real context every morning at
+06:15 (Bremen time), and once right after each start, so days missed
+while it was off are filled in:
+
+- measured hourly weather from DWD station Bremen up to the last full hour
+  (the last two days are fetched again, because DWD may still correct them);
+- new, rescheduled and finished Werder Bremen home matches from OpenLigaDB.
+
+A new database first receives the committed year from
+`backend/src/main/resources/context/`. The update needs internet access;
+if it fails, the backend logs a warning and tries again next time. The log
+line starts with `Context update`. City events (Freimarkt,
+Weihnachtsmarkt, …) are still maintained by hand in `events_bremen.csv`.
+Switch it off with `stecker.context.daily-update.enabled=false`; change the
+time with `stecker.context.daily-update.cron`.
 
 ### Planning page for admins
 

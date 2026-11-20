@@ -77,6 +77,14 @@ public class LocalEvent {
         this.note = note;
     }
 
+    /** Updates an event whose details changed at the source (rescheduled, final score). */
+    public void update(String name, Instant startsAt, Instant endsAt, String note) {
+        this.name = name;
+        this.startsAt = startsAt;
+        this.endsAt = endsAt;
+        this.note = note;
+    }
+
     /** True if the event is running at this moment. */
     public boolean isActiveAt(Instant moment) {
         return !moment.isBefore(startsAt) && moment.isBefore(endsAt);

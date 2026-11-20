@@ -20,11 +20,15 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Loads the real Bremen context data (weather, football, city events)
  * from the CSV files in src/main/resources/context into the database.
- * Running it again replaces the tables with the file contents.
+ *
+ * Running it again never removes data the daily update added: weather hours
+ * already stored are kept, football matches are matched on their OpenLigaDB
+ * id, and only the hand-maintained city events are replaced by the file.
  */
 @Service
 public class ContextDataImporter {
@@ -52,18 +56,46 @@ public class ContextDataImporter {
 
     @Transactional
     public ImportSummary importAll() {
-        List<WeatherObservation> weather = readWeather();
+        Set<Instant> stored = weatherRepository.findAllObservedAt();
+        List<WeatherObservation> newHours = readWeather().stream()
+                .filter(hour -> !stored.contains(hour.getObservedAt()))
+                .toList();
+        weatherRepository.saveAll(newHours);
+
         List<LocalEvent> football = readFootball();
+        for (LocalEvent match : football) {
+            saveOrUpdate(eventRepository, match);
+        }
+
         List<LocalEvent> cityEvents = readCityEvents();
-
-        weatherRepository.deleteAllInBatch();
-        eventRepository.deleteAllInBatch();
-
-        weatherRepository.saveAll(weather);
-        eventRepository.saveAll(football);
+        eventRepository.deleteAll(eventRepository.findAllByTypeNot(LocalEventType.FOOTBALL));
         eventRepository.saveAll(cityEvents);
 
-        return new ImportSummary(weather.size(), football.size(), cityEvents.size());
+        return new ImportSummary(weatherRepository.findAllObservedAt().size(),
+                football.size(), cityEvents.size());
+    }
+
+    /** Matches are identified by their source ("OpenLigaDB match 12345"). */
+    static void saveOrUpdate(LocalEventRepository repository, LocalEvent event) {
+        repository.findFirstByTypeAndSource(event.getType(), event.getSource())
+                .ifPresentOrElse(
+                        existing -> existing.update(event.getName(), event.getStartsAt(),
+                                event.getEndsAt(), event.getNote()),
+                        () -> repository.save(event));
+    }
+
+    /** The same LocalEvent the CSV import creates, for a match from the daily update. */
+    static LocalEvent footballEvent(long openLigaDbId, Instant kickoff, String competition,
+                                    String homeTeam, String awayTeam, String finalScore) {
+        return new LocalEvent(
+                LocalEventType.FOOTBALL,
+                homeTeam + " – " + awayTeam + " (" + competition + ")",
+                kickoff,
+                kickoff.plus(MATCH_LENGTH),
+                "Weserstadion",
+                2.0,
+                "OpenLigaDB match " + openLigaDbId,
+                finalScore == null || finalScore.isBlank() ? null : "Final score " + finalScore);
     }
 
     static List<WeatherObservation> readWeather() {
@@ -85,18 +117,13 @@ public class ContextDataImporter {
     static List<LocalEvent> readFootball() {
         List<LocalEvent> result = new ArrayList<>();
         for (Map<String, String> row : rows(FOOTBALL_FILE)) {
-            Instant kickoff = Instant.parse(row.get("kickoff_utc"));
-            String score = row.get("final_score");
-            result.add(new LocalEvent(
-                    LocalEventType.FOOTBALL,
-                    row.get("home_team") + " – " + row.get("away_team")
-                            + " (" + row.get("competition") + ")",
-                    kickoff,
-                    kickoff.plus(MATCH_LENGTH),
-                    row.get("venue"),
-                    2.0,
-                    "OpenLigaDB match " + row.get("openligadb_match_id"),
-                    score.isBlank() ? null : "Final score " + score));
+            result.add(footballEvent(
+                    Long.parseLong(row.get("openligadb_match_id")),
+                    Instant.parse(row.get("kickoff_utc")),
+                    row.get("competition"),
+                    row.get("home_team"),
+                    row.get("away_team"),
+                    row.get("final_score")));
         }
         return result;
     }

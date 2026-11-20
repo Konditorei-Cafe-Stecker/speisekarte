@@ -100,7 +100,14 @@ It prints a summary line starting with `Synthetic orders`.
 - Other settings: `--stecker.synthetic.start=2025-11-01`, `--stecker.synthetic.end=2026-10-31`.
   The end must be before today and inside the context data.
 
-## Refreshing the context data
+## Keeping the context data current
+
+The backend updates weather and Werder home matches every day by itself
+(see "Daily context update" in the README). The synthetic history still
+covers 1 Nov 2025 – 31 Oct 2026; the newer real weather is there for real
+orders and for checking forecasts.
+
+## Refreshing the context files
 
 ```bash
 python3 scripts/fetch_context_data.py 2025-11-01 2026-10-31

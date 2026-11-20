@@ -69,7 +69,9 @@ SELECT
     m.category,
     m.subcategory,
     m.size_volume,
-    i.product_name || coalesce(' (' || m.size_volume || ')', '')  AS product_label,
+    CASE WHEN m.size_volume IS NULL OR strpos(i.product_name, m.size_volume) > 0
+         THEN i.product_name
+         ELSE i.product_name || ' (' || m.size_volume || ')' END        AS product_label,
     i.unit_price,
     i.quantity,
     i.line_total

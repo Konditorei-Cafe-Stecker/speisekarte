@@ -77,6 +77,11 @@ class Database:
         subprocess.run(self.base + ["-f", str(path)], env=self.env, check=True,
                        stdout=subprocess.DEVNULL)
 
+    def run_script(self, script):
+        """Runs SQL (including COPY ... FROM STDIN data) given as text."""
+        subprocess.run(self.base + ["-f", "-"], env=self.env, check=True, input=script,
+                       text=True, stdout=subprocess.DEVNULL)
+
     def query(self, sql):
         result = subprocess.run(self.base + ["--csv", "-c", sql], env=self.env,
                                 check=True, capture_output=True, text=True)

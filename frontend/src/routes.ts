@@ -9,6 +9,7 @@ export const pages = {
   about: lazyPage(() => import('./pages/About')),
   impressum: lazyPage(() => import('./pages/Impressum')),
   datenschutz: lazyPage(() => import('./pages/Datenschutz')),
+  admin: lazyPage(() => import('./pages/Admin')),
 }
 
 export const routes = [
@@ -18,6 +19,8 @@ export const routes = [
   { path: '/about', Page: pages.about },
   { path: '/impressum', Page: pages.impressum },
   { path: '/datenschutz', Page: pages.datenschutz },
+  // Owner's planning dashboard; not linked in the navigation.
+  { path: '/admin', Page: pages.admin },
 ]
 
 /** Starts loading the page that belongs to an address, if there is one. */

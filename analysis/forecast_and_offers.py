@@ -17,6 +17,9 @@ Writes analysis/output/forecast_report.md with charts.
 import argparse
 import json
 import sys
+import csv
+import io
+import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta
 from itertools import combinations
@@ -30,10 +33,11 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import statsmodels.api as sm  # noqa: E402
 import statsmodels.formula.api as smf  # noqa: E402
+from scipy.stats import poisson  # noqa: E402
 
 from common import (BERLIN, BLUE, GRID, HERE, ORANGE, AQUA, SQL_DIR, SURFACE,  # noqa: E402
                     TEXT_SECONDARY, WEEKDAYS, Database, add_database_arguments,
-                    add_event_flags, load_events, load_weather, md, open_hours,
+                    add_event_flags, euro, load_events, load_weather, md, open_hours,
                     product_group, save, style)
 
 STATION = "00691"
@@ -162,6 +166,44 @@ def fetch_upcoming(first, last):
     return forecast, pd.DataFrame(matches), observation_types
 
 
+def publish(db, first_day, day_rows, hour_rows, product_rows, basis):
+    """Replaces the forecast from first_day onwards in one transaction.
+    Earlier days are kept, so forecasts can later be compared with reality."""
+    exists = db.query("SELECT to_regclass('public.forecast_days') IS NOT NULL AS ready")
+    if not exists["ready"].iloc[0]:
+        sys.exit("The forecast tables do not exist yet. Start the backend once "
+                 "(it creates them), then run --publish again.")
+
+    def copy_block(table, columns, rows):
+        buffer = io.StringIO()
+        writer = csv.writer(buffer, lineterminator="\n")
+        for row in rows:
+            writer.writerow(["" if v is None or (isinstance(v, float) and np.isnan(v))
+                             else (f"{v:.4f}" if isinstance(v, float) else v) for v in row])
+        return (f"COPY {table} ({', '.join(columns)}) FROM STDIN WITH (FORMAT csv);\n"
+                f"{buffer.getvalue()}\\.\n")
+
+    generated = datetime.now().astimezone().isoformat()
+    days = [r + (basis, generated) for r in day_rows]
+    script = (
+        "BEGIN;\n"
+        f"DELETE FROM forecast_products WHERE forecast_day >= '{first_day}';\n"
+        f"DELETE FROM forecast_hours WHERE forecast_day >= '{first_day}';\n"
+        f"DELETE FROM forecast_days WHERE forecast_day >= '{first_day}';\n"
+        + copy_block("forecast_days", [
+            "forecast_day", "expected_orders", "orders_low", "orders_high", "expected_revenue",
+            "revenue_low", "revenue_high", "temp_min", "temp_max", "rainy_hours", "events",
+            "offers", "basis", "generated_at"], days)
+        + copy_block("forecast_hours", [
+            "forecast_day", "local_hour", "expected_orders", "orders_high"], hour_rows)
+        + copy_block("forecast_products", [
+            "forecast_day", "menu_item_id", "product_label", "category", "subcategory",
+            "unit_price", "expected_units"], product_rows)
+        + "COMMIT;\n")
+    db.run_script(script)
+    print(f"Published forecast {first_day} + {len(day_rows) - 1} days", file=sys.stderr)
+
+
 # ---------------------------------------------------------------- main
 
 def main():
@@ -173,8 +215,12 @@ def main():
                         help="first day of the held-out test period")
     parser.add_argument("--no-upcoming", action="store_true",
                         help="skip planning the coming week (needs internet)")
+    parser.add_argument("--publish", action="store_true",
+                        help="write the 7-day forecast into the database for the admin dashboard")
     parser.add_argument("--out", default=str(HERE / "output"))
     args = parser.parse_args()
+    if args.publish and args.no_upcoming:
+        parser.error("--publish needs the coming-week forecast; drop --no-upcoming")
 
     db = Database(args)
     db.run_file(SQL_DIR / "01_views.sql")
@@ -184,7 +230,7 @@ def main():
         SELECT order_id, hour_start_utc, local_date, local_hour, iso_weekday
         FROM analytics.order_facts WHERE status = 'CONFIRMED' {source_filter}""")
     lines = db.query(f"""
-        SELECT order_id, local_date, local_hour, iso_weekday, temperature_c,
+        SELECT order_id, local_date, local_hour, iso_weekday, temperature_c, menu_item_id,
                pre_match, christmas_market, category, subcategory, product_label, quantity
         FROM analytics.order_line_facts WHERE status = 'CONFIRMED' {source_filter}""")
     if orders.empty:
@@ -378,61 +424,116 @@ def main():
         })
     rules_table = pd.DataFrame(rules).drop(columns="key")
 
-    # ---- 4. The coming week
+    # ---- 4. The coming week (and optional publishing for the admin dashboard)
+    # Bar snacks are only needed for planning, not for the accuracy table.
+    bar_data = daily.merge(units.get("Bar snacks", pd.Series(dtype=float)).rename("units"),
+                           left_on="local_date", right_index=True, how="left").fillna({"units": 0})
+    group_models["Bar snacks"] = fit_poisson(DAILY_FORMULA, bar_data)
+
     upcoming_section = "_Skipped (`--no-upcoming`)._"
-    chart_week = None
+    publish_note = ""
     if not args.no_upcoming:
         try:
-            tomorrow = datetime.now().astimezone().date() + timedelta(days=1)
-            week_last = tomorrow + timedelta(days=6)
-            forecast, matches, observation_types = fetch_upcoming(tomorrow, week_last)
+            today = datetime.now().astimezone().date()
+            week_last = today + timedelta(days=6)
+            forecast, matches, observation_types = fetch_upcoming(today, week_last)
             future_events = pd.concat([events[events["type"] != "FOOTBALL"], matches],
                                       ignore_index=True)
-            future_hours = hourly_frame(open_hours(tomorrow, week_last), forecast,
+            future_hours = hourly_frame(open_hours(today, week_last), forecast,
                                         future_events, None)
             full_model = fit_poisson(HOURLY_MODELS[best], hourly)
             future_hours["forecast"] = predict(full_model, future_hours)
+            future_hours["orders_high"] = poisson.ppf(0.9, future_hours["forecast"]).astype(int)
             future_daily = daily_frame(future_hours)
-            plan_rows = []
+
+            menu = db.query("""SELECT id AS menu_item_id, name, size_volume, category,
+                                      subcategory, price FROM menu_items WHERE available""")
+            menu["product_label"] = [
+                name + (f" ({size})" if isinstance(size, str) and size not in name else "")
+                for name, size in zip(menu["name"], menu["size_volume"])]
+            menu["group"] = [product_group(c, s) for c, s in zip(menu["category"], menu["subcategory"])]
+            history = lines.assign(day_of_year=pd.to_datetime(lines["local_date"]).dt.dayofyear)
+
+            day_rows, hour_rows, product_rows, plan_rows = [], [], [], []
             for day in future_daily.itertuples():
                 day_hours = future_hours[future_hours["local_date"] == day.local_date]
                 expected = day_hours["forecast"].sum()
-                peak_hour = day_hours.loc[day_hours["forecast"].idxmax(), "hour"]
-                group_text = []
-                for group in ("Hot drinks", "Ice cream & desserts", "Alcohol"):
-                    frame = pd.DataFrame([day._asdict()])
-                    group_text.append(f"{group.split(' ')[0]} {predict(group_models[group], frame).iloc[0]:.0f}")
-                offers = []
+                day_frame = pd.DataFrame([day._asdict()])
+
+                # Products: group forecast × product share around this time of year
+                doy = pd.Timestamp(day.local_date).dayofyear
+                distance = (history["day_of_year"] - doy).abs()
+                window = history[np.minimum(distance, 366 - distance) <= 30]
+                group_units = {}
+                for group, model in group_models.items():
+                    group_units[group] = predict(model, day_frame).iloc[0]
+                    in_group = window[window["group"] == group]
+                    shares = (in_group.groupby("menu_item_id")["quantity"].sum()
+                              / max(in_group["quantity"].sum(), 1))
+                    for item in menu[menu["group"] == group].itertuples():
+                        units_expected = group_units[group] * shares.get(item.menu_item_id, 0.0)
+                        if units_expected > 0:
+                            product_rows.append((day.local_date, item.menu_item_id,
+                                                 item.product_label, item.category,
+                                                 item.subcategory, item.price, units_expected))
+                revenue = sum(r[5] * r[6] for r in product_rows if r[0] == day.local_date)
+                low = int(poisson.ppf(0.1, expected))
+                high = int(poisson.ppf(0.9, expected))
+
+                offers, day_events = [], []
+                for _, event in future_events.iterrows():
+                    starts = event["starts_at"].tz_convert(BERLIN).date()
+                    ends = (event["ends_at"] - pd.Timedelta(seconds=1)).tz_convert(BERLIN).date()
+                    if starts <= day.local_date <= ends:
+                        label = event["name"]
+                        if event["type"] == "FOOTBALL":
+                            label += f", Anstoß {event['starts_at'].tz_convert(BERLIN):%H:%M}"
+                        day_events.append(label)
                 if day.temp_max >= 22:
-                    offers.append("ice cream")
+                    offers.append(f"Eis hervorheben, z. B. {top_product(warm, 'Ice cream & desserts')}")
                 if day.temp_mean < 5:
-                    offers.append("hot drinks")
+                    offers.append("Heißgetränke-Angebot (Schokolade, Tee)")
                 if day.pre_match_hours > 0:
                     match = matches[matches["starts_at"].dt.tz_convert(BERLIN).dt.date
                                     == day.local_date].iloc[0]
-                    offers.append(f"match bundle before {match['starts_at'].tz_convert(BERLIN):%H:%M} "
-                                  f"({match['name'].split(' – ')[1]})")
+                    offers.append(f"Spieltags-Bundle bis {match['starts_at'].tz_convert(BERLIN) - pd.Timedelta(minutes=30):%H:%M}: "
+                                  f"{top_product(pre_match, 'Alcohol')} + {top_product(lines, 'Bar snacks')}")
                 if day.christmas_market:
-                    offers.append("Glühwein (Weihnachtsmarkt)")
+                    offers.append("Glühwein-Angebot (Weihnachtsmarkt)")
                 if day.weekday in quiet_weekdays:
-                    offers.append("breakfast bundle 9–11")
+                    offers.append(f"Frühstücks-Bundle 9–12 Uhr: {top_product(morning_lines, 'Breakfast')}"
+                                  f" + {top_product(morning_lines, 'Hot drinks')}")
+
+                temperature = day_hours["temperature_c"]
+                day_rows.append((day.local_date, expected, low, high, revenue,
+                                 revenue * low / expected, revenue * high / expected,
+                                 temperature.min(), temperature.max(), int(day.rainy_hours),
+                                 " | ".join(day_events), " | ".join(offers)))
+                for h in day_hours.itertuples():
+                    hour_rows.append((day.local_date, h.hour, h.forecast, h.orders_high))
+
                 plan_rows.append({
                     "Day": f"{WEEKDAYS[day.weekday]} {day.local_date:%d %b}",
-                    "Temp. (°C)": f"{day_hours['temperature_c'].min():.0f} to "
-                                  f"{day_hours['temperature_c'].max():.0f}",
+                    "Temp. (°C)": f"{temperature.min():.0f} to {temperature.max():.0f}",
                     "Rainy hours": int(day.rainy_hours),
-                    "Expected orders": f"{expected:.0f}",
-                    "Busiest hour": f"{peak_hour}:00",
-                    "Units: hot / ice / alcohol": " / ".join(t.split(" ")[1] for t in group_text),
+                    "Expected orders": f"{expected:.0f} ({low}–{high})",
+                    "Expected revenue": euro(revenue),
+                    "Units: hot / ice / alcohol": " / ".join(
+                        f"{group_units[g]:.0f}" for g in ("Hot drinks", "Ice cream & desserts", "Alcohol")),
                     "Suggested offers": "; ".join(offers) or "—",
                 })
             plan = pd.DataFrame(plan_rows)
 
             fig, ax = plt.subplots(figsize=(8, 3.4))
-            ax.bar(plan["Day"], plan["Expected orders"].astype(float), color=BLUE, width=0.7,
+            ax.bar(plan["Day"], [r[1] for r in day_rows], color=BLUE, width=0.7,
                    edgecolor=SURFACE, linewidth=2)
             style(ax, "Expected orders, coming week", ylabel="Orders")
-            chart_week = save(fig, out, "forecast_coming_week.png")
+            save(fig, out, "forecast_coming_week.png")
+
+            if args.publish:
+                publish(db, today, day_rows, hour_rows, product_rows, args.source)
+                publish_note = (f"\n\nPublished {len(day_rows)} days, {len(hour_rows)} hours and "
+                                f"{len(product_rows)} product rows for the admin dashboard.")
 
             match_list = "\n".join(
                 f"- {m['name']}, {m['starts_at'].tz_convert(BERLIN):%a %d %b %H:%M}"
@@ -448,12 +549,14 @@ Werder home matches this week:
 
 {md(plan)}
 
-The order numbers come from a model trained on the
+Expected orders show the range that 80 % of days should fall into.
+Revenue = forecast units per product × current menu price.
+The numbers come from a model trained on the
 {"synthetic" if args.source == "SYNTHETIC" else args.source.lower()} history, so they are
 {"simulation-based" if args.source == "SYNTHETIC" else "estimates"}. Weather forecasts are less
-certain than measurements, especially more than three days ahead."""
-        except Exception as error:  # network or API problem: keep the rest of the report
-            upcoming_section = f"_Could not plan the coming week: {error}_"
+certain than measurements, especially more than three days ahead.{publish_note}"""
+        except urllib.error.URLError as error:  # no internet: keep the rest of the report
+            upcoming_section = f"_Could not plan the coming week (no connection?): {error}_"
 
     # ---- 5. Report
     synthetic = args.source == "SYNTHETIC"

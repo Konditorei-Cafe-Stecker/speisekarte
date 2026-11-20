@@ -1,0 +1,366 @@
+/* Owner's planning dashboard. Uses the site's colours and type. */
+.admin {
+  padding-top: clamp(32px, 5vw, 56px);
+  padding-bottom: var(--section-space);
+}
+
+.admin h1 {
+  margin: 12px 0 0;
+}
+
+.admin h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+}
+
+.admin-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.admin-meta,
+.admin-hint,
+.admin-section-intro {
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.admin-section-intro {
+  max-width: 68ch;
+}
+
+.admin-notice,
+.admin-error {
+  margin-top: 24px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.admin-notice {
+  border: 1px dashed var(--accent);
+  background: var(--surface);
+  color: var(--text-h);
+}
+
+.admin-error {
+  border: 1px solid #b4473a;
+  background: #fbefec;
+  color: #7a2b21;
+}
+
+.admin-loading {
+  margin-top: 32px;
+}
+
+.admin-body {
+  transition: opacity 0.2s ease;
+}
+
+.admin-body.is-updating {
+  opacity: 0.6;
+}
+
+/* ---- Login */
+.admin-login {
+  max-width: 520px;
+}
+
+.admin-login-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.admin-login-form label,
+.admin-controls label {
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.admin input {
+  min-height: var(--touch);
+  padding: 8px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-h);
+  font: inherit;
+}
+
+.admin-login-form .btn {
+  justify-self: start;
+  margin-top: 8px;
+}
+
+/* ---- Summary tiles */
+.admin-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+}
+
+.admin-tile {
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.admin-tile-label {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-tile-value {
+  margin-top: 6px;
+  color: var(--text-h);
+  font-family: var(--heading);
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.admin-tile-note {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+/* ---- Sections */
+.admin-section {
+  margin-top: clamp(40px, 6vw, 64px);
+  padding-top: 24px;
+  border-top: 1px solid var(--text-h);
+}
+
+/* ---- Revenue per day */
+.admin-days {
+  display: grid;
+  gap: 18px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-day {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-day-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.admin-day-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-bar {
+  position: relative;
+  height: 14px;
+  margin-top: 8px;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.admin-bar-fill {
+  position: absolute;
+  inset: 2px auto 2px 0;
+  border-radius: 0 4px 4px 0;
+  background: var(--accent);
+}
+
+/* The likely range: a thin line across the bar. */
+.admin-bar-range {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  background: var(--text-h);
+  transform: translateY(-50%);
+}
+
+.admin-day-facts {
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.admin-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--logo-blue);
+  border-radius: var(--radius-pill);
+  color: var(--text-h);
+  font-size: 13px;
+}
+
+.admin-offers {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+/* ---- Controls */
+.admin-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-end;
+  margin-top: 20px;
+}
+
+.admin-controls label {
+  display: grid;
+  gap: 6px;
+  max-width: 300px;
+}
+
+.admin-controls input[type='number'] {
+  width: 120px;
+}
+
+.admin-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-filter-btn {
+  min-height: var(--touch);
+  padding: 8px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-filter-btn.is-active {
+  border-color: var(--text-h);
+  background: var(--text-h);
+  color: var(--bg);
+}
+
+/* ---- Tables */
+.admin-table-wrap {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+.admin table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin th,
+.admin td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.admin thead th {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin tbody th {
+  color: var(--text-h);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin-products tbody th {
+  white-space: normal;
+}
+
+.admin-product-group {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Staff grid: one hue, light (few people) to dark (many). */
+.admin-staff td {
+  min-width: 44px;
+  border: 2px solid var(--bg);
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Day names stay visible while the hours scroll sideways on phones. */
+.admin-staff th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg);
+}
+
+.admin-staff .is-closed {
+  color: var(--border-strong);
+  font-weight: 400;
+}
+
+.staff-level-1 {
+  background: #f3ede5;
+  color: var(--text-h);
+}
+
+.staff-level-2 {
+  background: #e3cfb8;
+  color: var(--text-h);
+}
+
+.staff-level-3 {
+  background: #c49a72;
+  color: var(--dark);
+}
+
+.staff-level-4 {
+  background: var(--accent);
+  color: #fff;
+}
+
+.admin-staff .admin-staff-total {
+  background: transparent;
+  color: var(--text-h);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-body {
+    transition: none;
+  }
+}

@@ -27,11 +27,13 @@ football matches and nearby events, followed by offer recommendations.
   from the real menu and context. See [docs/synthetic-data.md](docs/synthetic-data.md).
 - First analysis: SQL views, data-quality checks and a Python report with
   charts and an hourly demand model. See [analysis/README.md](analysis/README.md).
+- Forecasts and offer suggestions, tested on a held-out period.
+- Owner's planning dashboard at `/admin`: expected revenue, staff per hour
+  and product needs for the next 7 days.
 
 Selected quantities and the last submitted order are kept in the browser tab's
 `sessionStorage`. Saved orders live in PostgreSQL.
-Order QR codes, the waiter screens, staff access, forecasts and offer
-recommendations are planned.
+Order QR codes, the waiter screens and a proper staff login are planned.
 
 ## Project structure
 
@@ -243,6 +245,52 @@ Manual frontend checks:
 - One Tasse Filterkaffee and two Cappuccino mit Milch total 11,70 €.
 - Backend failures display an error and support retry.
 - The layout works at narrow widths and the final product remains accessible.
+
+## Admin dashboard
+
+The owner's planning page at http://localhost:5173/admin shows, for today
+and the next 6 days:
+
+- **Umsatz:** expected revenue per day with a likely range, plus weather,
+  events, Werder home matches and suggested offers.
+- **Personalplanung:** service staff per hour. Based on the busy case
+  (9 of 10 days are quieter) and an adjustable assumption of how many
+  orders one person handles per hour (default 6, minimum staff 2).
+- **Warenbedarf:** expected units per product for the week and a
+  busy-case amount. Ingredients need recipe data, which does not exist yet.
+
+### 1. Choose an admin code
+
+The admin API is closed until a code is set. Use a long random value and
+keep it out of Git. In the backend's Terminal tab, before `bootRun`:
+
+```bash
+read -r -s 'STECKER_ADMIN_TOKEN?Admin code: '
+```
+
+```bash
+export STECKER_ADMIN_TOKEN
+```
+
+Then start the backend as usual. The page asks for this code; it is kept
+only in the browser tab until it is closed. This is a stopgap until a real
+staff login exists.
+
+### 2. Publish the forecast
+
+The backend must have run once so the forecast tables exist. Then, from the
+repository root, with `STECKER_DB_PASSWORD` set:
+
+```bash
+python3 analysis/forecast_and_offers.py --publish
+```
+
+This fetches the real DWD weather forecast and upcoming Werder matches,
+and writes the next 7 days into `forecast_days`, `forecast_hours` and
+`forecast_products`. Run it once a day, e.g. each morning. Older forecast
+days are kept, so forecasts can later be compared with what happened.
+
+While the forecast learns from synthetic orders, the page says so at the top.
 
 ## Planned order workflow
 

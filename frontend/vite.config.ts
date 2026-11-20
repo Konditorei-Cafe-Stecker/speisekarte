@@ -7,7 +7,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        // Override with STECKER_API_URL to point at a backend on another port.
+        target: process.env.STECKER_API_URL ?? 'http://localhost:8080',
         changeOrigin: true,
       },
     },

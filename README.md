@@ -15,12 +15,16 @@ football matches and nearby events, followed by offer recommendations.
 - PostgreSQL-backed menu returned through `GET /api/menu`.
 - Import script containing 107 products from the supplied menu spreadsheet.
 - Categories, subcategories, descriptions, sizes, notes and availability.
-- Frontend menu loading, error handling and retry.
-- Quantity selection and a total calculated in integer cents.
-- Responsive product cards and a fixed total bar.
+- Speisekarte with search, categories, quantities kept for the browser
+  session, and a total calculated in integer cents.
+- Orders saved through `POST /api/orders` with prices from the database.
+- Staff area at `/personal` with personal accounts, sign-in, own
+  passwords, and team management for admins.
+- The order workflow below: QR code and short code for the guest, the
+  waiter's order list and order page, confirmation and cancellation, and
+  a live status on the guest's phone.
 
-Selections currently live in the menu page's state.
-Order saving, order QR codes, staff access and analytics are planned.
+Analytics are planned.
 
 ## Project structure
 
@@ -104,8 +108,20 @@ export STECKER_DB_PASSWORD
 
 Keep this Terminal tab running. Stop the backend with Control+C.
 
-The local profile uses `spring.jpa.hibernate.ddl-auto=update` to create
-or adjust tables during development.
+## Database migrations
+
+Flyway creates and changes the tables when the backend starts. The
+migrations live in `backend/src/main/resources/db/migration` and run in
+version order (`V1__baseline.sql`, `V2__…`). Hibernate only checks that the
+entities match the tables (`ddl-auto=validate`) and never changes them.
+
+To change the database, add a new migration file with the next version
+number. Never edit a migration that has already run anywhere, because
+Flyway refuses to start when a file differs from the recorded version.
+
+Databases created before migrations were introduced already contain the
+version 1 tables. On the first start Flyway records them as version 1 in a
+new `flyway_schema_history` table and leaves the data unchanged.
 
 ## Import the menu
 
@@ -150,6 +166,7 @@ Open:
 
 - Website: http://localhost:5173
 - Menu: http://localhost:5173/menu
+- Staff area: http://localhost:5173/personal
 
 Keep the backend running too.
 
@@ -171,6 +188,79 @@ Menu records include:
 `id`, `name`, `description`, `price`, `category`, `subcategory`,
 `sizeVolume`, `notes` and `available`.
 
+`POST /api/orders` saves an order. The request lists products and
+quantities only; prices always come from the database:
+
+```json
+{ "items": [{ "menuItemId": 1, "quantity": 2 }] }
+```
+
+It answers `201 Created` with the saved order. Errors are answered as
+problem details (`application/problem+json`) with a German `detail` text:
+`400` for an invalid request (empty order, quantity outside 1–99, more than
+50 different products), `404` for an unknown product and `409` for a
+product that is not available.
+
+## Staff accounts
+
+Every staff member has a personal account. Accounts are never deleted,
+only deactivated, so records keep pointing at a real person.
+
+| Role | May |
+|---|---|
+| `STAFF` | sign in to the staff area and work with orders |
+| `ADMIN` | additionally create accounts, change roles, deactivate accounts and reset passwords |
+
+New accounts and reset passwords are temporary: at the next sign-in the
+person must choose their own (at least 10 characters). There is always at
+least one active admin, and nobody can deactivate or demote themselves.
+A deactivated account or a reset password ends that person's sessions at
+once.
+
+### The first admin
+
+While no account exists, the backend creates one admin from two
+environment variables. Set them in the same Terminal tab before starting
+the backend (typing stays hidden):
+
+```bash
+export STECKER_BOOTSTRAP_ADMIN_USERNAME=chefin
+read -r -s 'STECKER_BOOTSTRAP_ADMIN_PASSWORD?Temporary admin password: '
+export STECKER_BOOTSTRAP_ADMIN_PASSWORD
+```
+
+Optionally set `STECKER_BOOTSTRAP_ADMIN_DISPLAY_NAME` as well. Start the
+backend, sign in at http://localhost:5173/personal and choose a new
+password. From then on the variables are ignored and can be removed:
+
+```bash
+unset STECKER_BOOTSTRAP_ADMIN_USERNAME STECKER_BOOTSTRAP_ADMIN_PASSWORD
+```
+
+Further accounts are created by an admin under *Team*.
+
+### Sign-in API
+
+Staff stay signed in with a session cookie for up to 12 hours. Every
+changing request must also send the CSRF token: `GET /api/auth/csrf` sets
+the `XSRF-TOKEN` cookie, and its value goes back in the `X-XSRF-TOKEN`
+header. Sending an order from the Speisekarte is public and exempt.
+
+| Request | Purpose |
+|---|---|
+| `GET /api/auth/csrf` | Set the CSRF cookie |
+| `POST /api/auth/login` | Sign in (form fields `username`, `password`) |
+| `POST /api/auth/logout` | Sign out |
+| `GET /api/auth/me` | The signed-in person, or `401` |
+| `POST /api/auth/password` | Choose an own password |
+| `GET, POST /api/admin/staff` | List and create accounts (admin) |
+| `PATCH /api/admin/staff/{id}` | Change name, role or active state (admin) |
+| `POST /api/admin/staff/{id}/password` | Set a temporary password (admin) |
+
+After 5 failed sign-ins for one username, or 20 from one address, within
+15 minutes, sign-in is refused with `429` until the oldest failure is 15
+minutes old. Endpoints not listed in `SecurityConfig` are closed.
+
 ## Build and checks
 
 Backend, starting from the repository root:
@@ -181,7 +271,9 @@ cd backend
 ```
 
 Spring integration tests use the `test` profile and an in-memory H2 database.
-Use the local PostgreSQL setup to verify PostgreSQL-specific behaviour.
+The Flyway migrations create its tables, so the tests also check that
+migrations and entities match. Use the local PostgreSQL setup to verify
+PostgreSQL-specific behaviour.
 
 Frontend, starting from the repository root:
 
@@ -201,18 +293,46 @@ Manual frontend checks:
 - Backend failures display an error and support retry.
 - The layout works at narrow widths and the final product remains accessible.
 
-## Planned order workflow
+## Order workflow
 
-1. Customer selects products and adds requests.
-2. Website saves a pending order and displays its QR code.
-3. Waiter scans the QR and opens a staff-only order page.
-4. Waiter adjusts the order and enters it into the official system.
-5. Waiter confirms the final quantities and prices in this website.
+1. The guest selects products on the Speisekarte, optionally writes wishes
+   for the waiter, and sends the order.
+2. The website saves it as `PENDING` and shows a QR code and a
+   four-character code (for example `MJ3V`).
+3. The waiter scans the QR code with their phone, which opens
+   `/personal/bestellung/<order>` (after signing in), or types the code
+   into the overview at `/personal`.
+4. The waiter checks the order with the guest, changes quantities, removes
+   or adds products, and enters it into the café's till system.
+5. The waiter confirms it here (`CONFIRMED`), with the final quantities,
+   or cancels it (`CANCELLED`). After that the order cannot change.
+6. The guest's confirmation updates by itself (it checks every 10 seconds
+   while the page is open).
 
-Planned statuses: `PENDING`, `CONFIRMED` and `CANCELLED`.
+Confirmation means the waiter has recorded the order in the official
+system. Payment is not tracked here.
 
-Confirmation means the waiter has recorded the order in the official system.
-Payment information would require separate tracking.
+What is stored for each order: the guest's original quantities next to
+the confirmed ones (removed lines keep quantity 0, added lines have
+original quantity 0), the wishes, and who confirmed or cancelled it when.
+Order times are local times in Bremen. Unit prices are copied into the
+order when a line is created, so later menu changes do not alter it.
+
+The overview lists today's open orders first, oldest at the top, and marks
+orders waiting longer than 10 minutes. Open orders from earlier days (the
+guest never showed the code) are listed separately so they can be
+cancelled. If two waiters handle the same order, the second one gets a
+`409` with an explanation instead of overwriting the first.
+
+| Request | Purpose |
+|---|---|
+| `GET /api/orders/{order}` | The guest's view of an order (public; the long random order number is the permission) |
+| `GET /api/staff/orders?view=open` | Open orders, oldest first |
+| `GET /api/staff/orders?view=today` | Confirmed and cancelled today, newest first |
+| `GET /api/staff/orders/{order}` | One order with original quantities |
+| `GET /api/staff/orders/code/{code}` | An open order by its four-character code |
+| `POST /api/staff/orders/{order}/confirm` | Confirm, optionally with `{"items": [...]}` as the final order |
+| `POST /api/staff/orders/{order}/cancel` | Cancel |
 
 ## Planned analytics
 
@@ -228,11 +348,7 @@ Results from simulated data will be described as simulation results.
 ## Work split and remaining tasks
 
 Frontend work:
-- Customer ordering and QR display.
-- Waiter review, modification and confirmation pages.
 - Dashboard presentation, mobile checks and deployment.
-- Update home-page links currently targeting `/menu#torten`,
-  `/menu#kuchen` and `/menu#gebaeck` to suitable destinations.
 
 Data and analytics work:
 - Synthetic historical order generation.
@@ -241,6 +357,4 @@ Data and analytics work:
 - Analytics endpoints and chart data.
 
 Shared work:
-- Order database model and Spring Boot order API.
-- Staff access and server-side price handling.
 - Review missing menu details and actual availability.

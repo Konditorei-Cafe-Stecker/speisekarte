@@ -21,10 +21,14 @@ football matches and nearby events, followed by offer recommendations.
 - Order saving through `POST /api/orders`, with prices taken from the database.
 - Waiter order API: open, edit, confirm and cancel an order by its reference.
 - Orders record their data source (`REAL` or `SYNTHETIC`) and confirmation time.
+- Real Bremen context data: hourly DWD weather, Werder Bremen home matches
+  and city events (`weather_hourly`, `local_events`).
+- A reproducible synthetic order history for Nov 2025 – Oct 2026, generated
+  from the real menu and context. See [docs/synthetic-data.md](docs/synthetic-data.md).
 
 Selected quantities and the last submitted order are kept in the browser tab's
 `sessionStorage`. Saved orders live in PostgreSQL.
-Order QR codes, the waiter screens, staff access and analytics are planned.
+Order QR codes, the waiter screens, staff access and the analysis itself are planned.
 
 ## Project structure
 
@@ -249,6 +253,8 @@ Confirmation means the waiter has recorded the order in the official system.
 Payment information would require separate tracking.
 
 ## Planned analytics
+
+The data for this exists now; see [docs/synthetic-data.md](docs/synthetic-data.md).
 
 - Product quantities and confirmed order values by hour and weekday.
 - Comparisons across temperature, rain, football matches and nearby events.

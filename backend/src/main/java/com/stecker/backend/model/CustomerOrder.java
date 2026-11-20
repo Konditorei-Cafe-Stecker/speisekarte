@@ -67,6 +67,21 @@ public class CustomerOrder {
         this.totalPrice = totalPrice;
     }
 
+    /**
+     * Creates an order for the simulated order history.
+     * Only the synthetic data generator should call this.
+     *
+     * @param orderReference reproducible reference derived from the seed
+     * @param createdAt      simulated moment the order was placed
+     */
+    public static CustomerOrder synthetic(UUID orderReference, Instant createdAt) {
+        CustomerOrder order = new CustomerOrder(BigDecimal.ZERO);
+        order.orderReference = orderReference;
+        order.createdAt = createdAt;
+        order.dataSource = DataSource.SYNTHETIC;
+        return order;
+    }
+
     public void addItem(OrderItem item) {
         items.add(item);
     }

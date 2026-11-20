@@ -5,13 +5,13 @@ import com.stecker.backend.model.OrderItem;
 import com.stecker.backend.model.OrderStatus;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 public record OrderResponse(
         UUID orderReference,
-        LocalDateTime createdAt,
+        Instant createdAt,
         OrderStatus status,
         BigDecimal totalPrice,
         List<OrderItemResponse> items

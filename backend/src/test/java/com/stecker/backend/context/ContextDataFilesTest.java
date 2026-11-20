@@ -57,8 +57,21 @@ class ContextDataFilesTest {
     void cityEventsHaveSourcesAndLocalDates() {
         List<LocalEvent> events = ContextDataImporter.readCityEvents();
 
-        assertEquals(7, events.size());
+        assertEquals(21, events.size());
         assertTrue(events.stream().allMatch(e -> e.getSource().startsWith("https://")));
+
+        // Christmas markets multiply the footfall, so their rows must not
+        // overlap (the Ansgari Winterwald is listed only after 23 Dec).
+        List<LocalEvent> christmasMarkets = events.stream()
+                .filter(e -> e.getType() == LocalEventType.CHRISTMAS_MARKET)
+                .toList();
+        for (LocalEvent a : christmasMarkets) {
+            for (LocalEvent b : christmasMarkets) {
+                assertTrue(a == b || !a.getStartsAt().isBefore(b.getEndsAt())
+                                || !b.getStartsAt().isBefore(a.getEndsAt()),
+                        a.getName() + " overlaps " + b.getName());
+            }
+        }
 
         LocalEvent christmas = events.stream()
                 .filter(e -> e.getType() == LocalEventType.CHRISTMAS_MARKET)

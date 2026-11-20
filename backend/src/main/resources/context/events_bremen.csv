@@ -1,8 +1,22 @@
 name,type,start_date,end_date,daily_hours,location,approx_distance_km,source_url,note
 Bremer Freimarkt 2025,FAIR,2025-10-17,2025-11-02,,Bürgerweide and Marktplatz,1.5,"https://news.cision.com/wfb-bremen/r/freimarkt-bremen-2025--the-biggest-fair-in-the-north-is-opening-its-doors,c4222641","Small Freimarkt also on the Marktplatz, next to the café"
 Bremer Weihnachtsmarkt and Schlachte-Zauber 2025,CHRISTMAS_MARKET,2025-11-24,2025-12-23,11:00-20:30,Marktplatz and Schlachte,0.3,https://www.reiseuhu.de/blog/bremen-weihnachtsmaerkte/,"Fri/Sat until 21:00"
+Ansgari Winterwald 2025 (after Christmas),CHRISTMAS_MARKET,2025-12-27,2025-12-30,,Ansgarikirchhof,0.1,https://www.bremen-city.de/de/aktuelles/ansgari-winterwald-2025/,"Runs 24 Nov 2025 – 4 Jan 2026; until 23 Dec the Weihnachtsmarkt row already covers it. Closed 24–26 Dec, 31 Dec and 1 Jan"
+Ansgari Winterwald 2026 (New Year),CHRISTMAS_MARKET,2026-01-02,2026-01-04,,Ansgarikirchhof,0.1,https://www.bremen-city.de/de/aktuelles/ansgari-winterwald-2025/,Last days of the Winterwald 2025/26
 Bremer Osterwiese 2026,FAIR,2026-03-27,2026-04-12,14:00-23:00,Bürgerweide,1.5,https://www.festivalsindeutschland.de/festival/bremer-osterwiese,"Closed on Karfreitag; one WFB document gives 14 Apr as the end date"
+Lange Nacht der Museen 2026,FESTIVAL,2026-05-30,2026-05-30,,Böttcherstraße and museums citywide,0.4,https://www.langenachtbremen.de/,More than 30 museums open into the night
+Bremer Welterbetage 2026,FESTIVAL,2026-06-05,2026-06-07,,Rathaus and Marktplatz,0.4,https://www.wfb-bremen.de/de/page/news/117164,UNESCO World Heritage days around Rathaus and Roland
+SummerSounds 2026,FESTIVAL,2026-06-05,2026-06-07,,Neustadtswallanlagen,1.2,https://summersounds.de/presse2026/,Music and culture festival
+LA STRADA 2026,FESTIVAL,2026-06-11,2026-06-14,,Marktplatz and city centre,0.4,https://www.wfb-bremen.de/de/page/news/117164,International street art festival
+HOEG CitySommerFest 2026,FESTIVAL,2026-06-19,2026-06-21,,Marktplatz and city centre,0.4,https://www.wfb-bremen.de/de/page/news/117164,Stages across the city centre
+Tag der Wissenschaft 2026,FESTIVAL,2026-06-27,2026-06-27,,Domshof and city centre,0.4,https://www.senatspressestelle.bremen.de/pressemitteilungen/erster-tag-der-wissenschaft-in-bremen-486743,First science day in the city centre; programme from 14:00
 Breminale 2026,FESTIVAL,2026-07-01,2026-07-05,,Osterdeich,1.2,https://www.bremen.eu/breminale,
+CSD Bremen 2026,PARADE,2026-08-22,2026-08-22,,Kunsthalle and city centre,0.9,https://www.csd-bremen.org/csd-bremen-2026/,Pride demonstration through the city centre; meets at 12:00
+Bremer Weinfest 2026,FESTIVAL,2026-08-27,2026-08-30,,Marktplatz,0.4,https://www.bremen-city.de/de/veranstaltungen/,Wine festival in the city centre
+Maritime Woche 2026,FESTIVAL,2026-09-12,2026-09-20,,Schlachte,0.3,https://www.bremen-city.de/de/veranstaltungen/,Maritime festival along the Weser promenade
+swb-Marathon Bremen 2026,PARADE,2026-09-13,2026-09-13,,Marktplatz (start and finish),0.4,https://www.wfb-bremen.de/de/page/news/120157,"Route crosses the city, spectators along it"
+Bürgerfest Tag der Deutschen Einheit 2026,FESTIVAL,2026-10-02,2026-10-04,,Marktplatz and city centre,0.4,https://www.wfb-bremen.de/de/page/news/117164,National celebration hosted by Bremen
 Bremer Freimarkt 2026,FAIR,2026-10-16,2026-11-01,,Bürgerweide and Marktplatz,1.5,https://www.festivalsindeutschland.de/festival/bremer-freimarkt,"Small Freimarkt also on the Marktplatz, next to the café"
 Freimarktsumzug 2026,PARADE,2026-10-24,2026-10-24,,City centre,0.5,https://www.freimarkt.de/wp-content/uploads/2026/04/Teilnahme-Bedingungen-1.pdf,Freimarkt parade through the city
+Bremer Chorfest 2026,FESTIVAL,2026-11-06,2026-11-08,,Markthalle Acht and Kulturkirche St. Stephani,0.5,https://stadtkulturbremen.de/kalender/?archive-year=2026,Choir festival at several city-centre venues
 Bremer Weihnachtsmarkt and Schlachte-Zauber 2026,CHRISTMAS_MARKET,2026-11-23,2026-12-23,,Marktplatz and Schlachte,0.3,https://www.festivalsindeutschland.de/festival/bremer-weihnachtsmarkt,"Announced dates; check with WFB Bremen"

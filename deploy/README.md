@@ -6,7 +6,7 @@ Kubernetes starts, watches and copies as needed:
 ```text
 guest ──▶ frontend (nginx, 2–4 copies) ──/api──▶ backend (Spring Boot, 2–3 copies) ──▶ PostgreSQL
             │ serves the React app                 │ staff sessions in PostgreSQL
-            │ caches /api/menu for 60 s            │ warm before ready, health checks
+            │ caches menu + recommendations 60 s   │ warm before ready, health checks
             │ each request to the least busy copy  │
           CronJobs: context-update 06:15 (weather, Werder matches) · forecast-publish 06:45
           Job: menu-import (once)
@@ -127,8 +127,14 @@ images no pod uses) and `docker image prune`.
   JVM threads sized for 2 CPUs, and Tomcat capped at 50 threads (with
   200, copies ran out of memory under load and were restarted).
 - **Menu cache.** Browsers may reuse the menu for 30 s
-  (`Cache-Control`), nginx keeps it for 60 s whatever query string is
-  added. A changed menu reaches guests within about 1.5 minutes.
+  (`Cache-Control`), nginx keeps it and today's recommendations for 60 s
+  whatever query string is added. A changed menu reaches guests within
+  about 1.5 minutes.
+- **Daily follow-up work** (DailyDataUpdate: synthetic orders, forecast
+  via Python) stays off in the cluster: the backend image has no Python
+  and daily synthetic orders are only for local development. The
+  `forecast-publish` CronJob publishes the forecast instead; the
+  `context-update` job still sends the "context updated" event.
 - **Real guest address for the login limit.** nginx replaces any
   `X-Forwarded-For` header a client sends with the address it sees, and
   the frontend service keeps the client's address

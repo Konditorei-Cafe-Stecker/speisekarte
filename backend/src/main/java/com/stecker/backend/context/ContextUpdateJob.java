@@ -7,6 +7,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 /**
@@ -16,6 +17,8 @@ import org.springframework.stereotype.Component;
  * would run in every copy. There it is switched off and a CronJob starts
  * the backend with the "context-update-job" profile instead, which runs
  * this exactly once (exit code 1 on failure, so the job is retried).
+ * Like the built-in update it then publishes a {@link ContextUpdatedEvent},
+ * so the follow-up work (see DailyDataUpdate) runs here as well.
  */
 @Component
 @ConditionalOnProperty(prefix = "stecker.context", name = "run-once", havingValue = "true")
@@ -24,10 +27,14 @@ public class ContextUpdateJob implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(ContextUpdateJob.class);
 
     private final ContextUpdateService updateService;
+    private final ApplicationEventPublisher events;
     private final ApplicationContext context;
 
-    public ContextUpdateJob(ContextUpdateService updateService, ApplicationContext context) {
+    public ContextUpdateJob(ContextUpdateService updateService,
+                            ApplicationEventPublisher events,
+                            ApplicationContext context) {
         this.updateService = updateService;
+        this.events = events;
         this.context = context;
     }
 
@@ -40,6 +47,7 @@ public class ContextUpdateJob implements ApplicationRunner {
                     summary.weatherHours(), summary.weatherFrom(), summary.weatherTo(),
                     summary.matches(),
                     summary.importedFiles() ? ", imported the context files first" : "");
+            events.publishEvent(new ContextUpdatedEvent("job"));
         } catch (RuntimeException error) {
             log.error("Context update (job) failed: {}", error.getMessage());
             exitCode = 1;

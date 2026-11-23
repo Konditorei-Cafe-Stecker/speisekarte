@@ -8,8 +8,8 @@
 // k6 cannot hold 10,000 real browsers on a laptop, so it sends the
 // requests those guests would send, at the same rate:
 //   - a visit lasts about 4 minutes, so 10,000 guests = 42 new visits/s;
-//   - each visit loads the page (index.html + script + stylesheet) and
-//     the menu;
+//   - each visit loads the page (index.html + script + stylesheet), the
+//     menu and today's recommendations;
 //   - 30 % order; a waiting guest checks the order status every 10 s
 //     (frontend Menu.tsx) for about 2 minutes until the waiter confirms.
 // That is about 320 requests per second, held for 3 minutes.
@@ -67,6 +67,7 @@ export const options = {
     dropped_iterations: ['count==0'],                     // the full load was sent
     'http_req_duration{kind:page}': ['p(95)<500'],
     'http_req_duration{kind:menu}': ['p(95)<500'],
+    'http_req_duration{kind:recommendations}': ['p(95)<500'],
     'http_req_duration{kind:status}': ['p(95)<500'],
     'http_req_duration{kind:order}': ['p(95)<1000'],
   },
@@ -128,8 +129,13 @@ export function loadPage(data) {
 }
 
 export function loadMenu() {
-  const response = http.get(`${BASE}/api/menu`, { tags: { kind: 'menu' } });
-  check(response, { 'menu 200': (r) => r.status === 200 });
+  // The home and menu pages also show today's recommendations.
+  const [menu, recommendations] = http.batch([
+    ['GET', `${BASE}/api/menu`, null, { tags: { kind: 'menu' } }],
+    ['GET', `${BASE}/api/recommendations/today`, null, { tags: { kind: 'recommendations' } }],
+  ]);
+  check(menu, { 'menu 200': (r) => r.status === 200 });
+  check(recommendations, { 'recommendations 200': (r) => r.status === 200 });
 }
 
 export function sendOrder(data) {

@@ -7,7 +7,7 @@
 # removed by the autoscaler get traffic within seconds.
 resolver ${DNS_RESOLVER} valid=5s ipv6=off;
 
-# The menu is the same for every guest: keep it for 60 seconds.
+# The menu and today's recommendations: keep them for 60 seconds.
 proxy_cache_path /tmp/nginx-menu-cache keys_zone=menu:1m max_size=10m inactive=10m;
 
 log_format upstream '$remote_addr "$request" $status $body_bytes_sent '
@@ -40,7 +40,9 @@ server {
         return 200 "ok\n";
     }
 
-    location = /api/menu {
+    # The menu and today's recommendations are the same for every guest
+    # and change at most a few times a day.
+    location ~ ^/api/(menu|recommendations/today)$ {
         proxy_pass http://backend;
         include /etc/nginx/proxy-headers.inc;
         proxy_cache menu;

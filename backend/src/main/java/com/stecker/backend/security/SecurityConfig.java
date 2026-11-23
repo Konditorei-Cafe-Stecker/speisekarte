@@ -24,8 +24,8 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
  * Who may call which endpoint.
  *
  * <ul>
- *   <li>Public: health, the menu, sending an order and checking its
- *       status, and signing in.</li>
+ *   <li>Public: health, the menu, today's recommendations, sending an
+ *       order and checking its status, and signing in.</li>
  *   <li>{@code /api/staff/**}: any signed-in staff member.</li>
  *   <li>{@code /api/admin/**}: admins only.</li>
  *   <li>Everything else is refused, so a new endpoint is closed until it is
@@ -78,7 +78,8 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/health", "/api/menu").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/health", "/api/menu",
+                                "/api/recommendations/today").permitAll()
                         // Kubernetes liveness/readiness probes; only "UP"/"DOWN", no details
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                         // Which version runs (build version and time, nothing else)

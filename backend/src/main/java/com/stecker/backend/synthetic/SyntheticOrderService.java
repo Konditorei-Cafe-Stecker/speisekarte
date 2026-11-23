@@ -16,17 +16,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Saves a generated order history. Only ever deletes or writes orders with
+ * Saves a generated order history, and continues it day by day
+ * ({@link #continueHistory}). Only ever deletes or writes orders with
  * dataSource = SYNTHETIC; REAL orders are never touched.
  */
 @Service
@@ -69,6 +73,13 @@ public class SyntheticOrderService {
     ) {
     }
 
+    /** What continueHistory added: orders for the days from–to. */
+    public record Continuation(LocalDate from, LocalDate to, int orders) {
+    }
+
+    private record Saved(int confirmed, int lines, BigDecimal confirmedRevenue) {
+    }
+
     @Transactional
     public Summary generate(LocalDate start, LocalDate end, long seed, boolean replace) {
         if (end.isBefore(start)) {
@@ -79,11 +90,7 @@ public class SyntheticOrderService {
                     "The history must end before today; " + end + " is not in the past.");
         }
 
-        List<MenuItem> menu = menuRepository.findAll();
-        if (menu.stream().noneMatch(MenuItem::isAvailable)) {
-            throw new IllegalStateException(
-                    "No available menu products. Import the menu first.");
-        }
+        List<MenuItem> menu = availableMenu();
 
         long existing = orderRepository.countByDataSource(DataSource.SYNTHETIC);
         if (existing > 0 && !replace) {
@@ -97,15 +104,93 @@ public class SyntheticOrderService {
             deleted = orderRepository.deleteOrdersByDataSource(DataSource.SYNTHETIC);
         }
 
-        SyntheticOrderGenerator generator = new SyntheticOrderGenerator(
+        List<GeneratedOrder> orders = generator(menu, seed).generate(start, end);
+
+        validate(orders, start, end);
+        Saved saved = save(orders);
+
+        return new Summary(start, end, seed, deleted, orders.size(), saved.confirmed(),
+                orders.size() - saved.confirmed(), saved.lines(), saved.confirmedRevenue());
+    }
+
+    /**
+     * Adds orders for the days since the latest synthetic order, up to the
+     * last day that is over and has measured weather for every opening hour
+     * (normally yesterday). For running the site locally without real
+     * guests: the dashboard and the forecast keep getting fresh history.
+     *
+     * The new days are what one long generator run with the same seed would
+     * have produced: the history is generated again from its first day and
+     * only the new days are kept. Running it again the same day adds nothing.
+     *
+     * @return what was added; empty when there is no synthetic history to
+     *         continue or nothing new to add
+     */
+    @Transactional
+    public Optional<Continuation> continueHistory(long seed) {
+        return continueHistory(seed, LocalDate.now(clock.withZone(SyntheticScenario.ZONE)));
+    }
+
+    @Transactional
+    Optional<Continuation> continueHistory(long seed, LocalDate today) {
+        Optional<LocalDateTime> first = orderRepository.findFirstCreatedAt(DataSource.SYNTHETIC);
+        Optional<LocalDateTime> last = orderRepository.findLastCreatedAt(DataSource.SYNTHETIC);
+        Optional<Instant> latestWeather = weatherRepository.findTopByOrderByObservedAtDesc()
+                .map(hour -> hour.getObservedAt());
+        if (first.isEmpty() || last.isEmpty() || latestWeather.isEmpty()) {
+            return Optional.empty();
+        }
+
+        LocalDate from = last.get().toLocalDate().plusDays(1);
+        LocalDate to = lastCompleteDay(today, latestWeather.get());
+        if (to.isBefore(from)) {
+            return Optional.empty();
+        }
+
+        List<GeneratedOrder> orders = generator(availableMenu(), seed)
+                .generate(first.get().toLocalDate(), to).stream()
+                .filter(order -> !order.createdAt().atZone(SyntheticScenario.ZONE)
+                        .toLocalDate().isBefore(from))
+                .toList();
+
+        validate(orders, from, to);
+        save(orders);
+        return Optional.of(new Continuation(from, to, orders.size()));
+    }
+
+    /**
+     * The last day that is over and has weather up to its last opening hour:
+     * yesterday, or earlier when the weather has not been fetched that far.
+     */
+    static LocalDate lastCompleteDay(LocalDate today, Instant latestWeather) {
+        LocalDateTime latest = LocalDateTime.ofInstant(latestWeather, SyntheticScenario.ZONE);
+        LocalTime lastOpeningHour = CafeCalendar.lastOrderBefore()
+                .minusNanos(1).truncatedTo(ChronoUnit.HOURS);
+        LocalDate covered = latest.toLocalTime().isBefore(lastOpeningHour)
+                ? latest.toLocalDate().minusDays(1)
+                : latest.toLocalDate();
+        LocalDate yesterday = today.minusDays(1);
+        return covered.isBefore(yesterday) ? covered : yesterday;
+    }
+
+    private List<MenuItem> availableMenu() {
+        List<MenuItem> menu = menuRepository.findAll();
+        if (menu.stream().noneMatch(MenuItem::isAvailable)) {
+            throw new IllegalStateException(
+                    "No available menu products. Import the menu first.");
+        }
+        return menu;
+    }
+
+    private SyntheticOrderGenerator generator(List<MenuItem> menu, long seed) {
+        return new SyntheticOrderGenerator(
                 menu,
                 weatherRepository.findAllByOrderByObservedAtAsc(),
                 eventRepository.findAllByOrderByStartsAtAsc(),
                 seed);
-        List<GeneratedOrder> orders = generator.generate(start, end);
+    }
 
-        validate(orders, start, end);
-
+    private Saved save(List<GeneratedOrder> orders) {
         int confirmed = 0;
         int lines = 0;
         BigDecimal revenue = BigDecimal.ZERO;
@@ -139,8 +224,7 @@ public class SyntheticOrderService {
             }
         }
 
-        return new Summary(start, end, seed, deleted, orders.size(), confirmed,
-                orders.size() - confirmed, lines, revenue);
+        return new Saved(confirmed, lines, revenue);
     }
 
     /** Checks every generated order before anything is saved. */

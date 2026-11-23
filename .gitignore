@@ -11,3 +11,6 @@ analysis/output/
 
 # Python cache
 __pycache__/
+
+# Python environment for the analysis scripts
+analysis/.venv/

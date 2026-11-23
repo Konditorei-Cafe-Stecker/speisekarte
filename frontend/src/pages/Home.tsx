@@ -5,6 +5,7 @@ import Featured from '../components/Featured/Featured'
 import GiantLines from '../components/GiantLines/GiantLines'
 import Story from '../components/Story/Story'
 import MenuTeaser from '../components/MenuTeaser/MenuTeaser'
+import TodayButton from '../components/TodayButton/TodayButton'
 import Visit from '../components/Visit/Visit'
 import { useScrollToHashOnMount } from '../utils/scroll'
 import {
@@ -37,10 +38,10 @@ function Home() {
         },
       )
 
-      // Footer logo grows into place from its bottom-left corner.
+      // Footer logo grows into place from its bottom centre.
       gsap.fromTo(
         '.site-footer-logo',
-        { y: 90, scale: 0.82, transformOrigin: 'left bottom' },
+        { y: 90, scale: 0.82, transformOrigin: 'center bottom' },
         {
           y: 0,
           scale: 1,
@@ -73,6 +74,7 @@ function Home() {
     <div className="home">
       <Hero />
       <Marquee />
+      <TodayButton />
       <Featured />
       <GiantLines />
       <Story />

@@ -48,7 +48,7 @@ planning page for the owner.
 | `analysis/` | SQL views, quality checks, analysis and forecast scripts |
 | `scripts/` | Download script for the context data |
 | `docs/` | Synthetic data: sources, assumptions, how to run |
-| `deploy/` | Docker images, Kubernetes manifests, local cluster scripts, load test |
+| `deploy/` | Kubernetes manifests, kind cluster, local start/stop scripts, load test (the Dockerfiles are in `backend/`, `frontend/` and `analysis/`) |
 | `README.md` | Project description and local setup |
 
 ## Requirements
@@ -409,15 +409,17 @@ morning at 06:45.
 
 ## Running on Kubernetes
 
-For busy times (10,000 guests at once) the site can run as several copies
-in Kubernetes: nginx with the website, 2–3 backend copies that scale with
-the load, PostgreSQL, and CronJobs for the daily weather update and the
-forecast. Locally, in a kind cluster:
+For busy times the site can run as several copies in Kubernetes: nginx
+with the website, 2–3 backend copies that scale with the load, PostgreSQL,
+and CronJobs for the daily weather update and the forecast. It is designed
+for 10,000 guests at once; on a laptop the load test comes close but does
+not pass every threshold (results in deploy/README.md). Locally, in a kind
+cluster:
 
 ```bash
 brew install colima docker docker-buildx kind kubectl k6
-deploy/local-up.sh --demo-data     # then open http://localhost:8088
-k6 run deploy/loadtest/guests.js   # load test with 10,000 guests
+deploy/local-up.sh --demo-data          # then open http://localhost:8088
+deploy/loadtest/run-in-cluster.sh       # load test with 10,000 guests, inside the cluster
 ```
 
 Staff sessions are stored in PostgreSQL (migration V5), so they work

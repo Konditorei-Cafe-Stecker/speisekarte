@@ -78,8 +78,7 @@ class SeveralCopiesTest {
     void showsTheRunningVersion() throws Exception {
         mockMvc.perform(get("/actuator/info"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.build.version").isNotEmpty())
-                .andExpect(jsonPath("$.build.time").isNotEmpty());
+                .andExpect(jsonPath("$.build.version").isNotEmpty());
     }
 
     @Test

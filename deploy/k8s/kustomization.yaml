@@ -1,6 +1,8 @@
-# Café Stecker on Kubernetes:  kubectl apply -k deploy/k8s
-# The secrets "stecker-db" and "stecker-admin" are not in git; the script
-# deploy/local-up.sh creates them (see deploy/README.md).
+# Café Stecker on Kubernetes. Deploy with deploy/local-up.sh: it builds the
+# images and renders this with their version (the tag "dev" below is only a
+# placeholder; `kubectl apply -k` alone would deploy old or missing images).
+# The secrets "stecker-db" and "stecker-admin" are not in git; local-up.sh
+# creates them (see deploy/README.md).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: stecker
@@ -10,6 +12,7 @@ resources:
   - backend.yaml
   - frontend.yaml
   - jobs.yaml
+  - networkpolicy.yaml
 images:
   - {name: stecker-backend, newName: stecker-backend, newTag: dev}
   - {name: stecker-frontend, newName: stecker-frontend, newTag: dev}

@@ -11,9 +11,10 @@ RUN ./gradlew --no-daemon -q dependencies > /dev/null
 COPY src src
 # The version from git (deploy/local-up.sh passes it); shown at /actuator/info.
 ARG APP_VERSION=dev
-# Tests run in CI and with ./gradlew build, not inside the image build.
+# Tests are not run inside the image build: run ./gradlew test before
+# deploying (there is no CI test job yet).
 RUN ./gradlew --no-daemon -q bootJar -x test -PappVersion="$APP_VERSION" \
-    && cp "build/libs/backend-$APP_VERSION.jar" /app.jar
+    && cp build/libs/backend.jar /app.jar
 
 FROM eclipse-temurin:21-jre
 ARG APP_VERSION=dev

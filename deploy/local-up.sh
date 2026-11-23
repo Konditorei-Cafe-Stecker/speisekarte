@@ -18,6 +18,14 @@ step() { printf '\n==> %s\n' "$*"; }
 
 step "Docker (Colima)"
 colima status >/dev/null 2>&1 || colima start --cpu 4 --memory 4 --disk 30 --vm-type vz
+# An already running Colima keeps its size. Below 4 CPUs / 4 GB the backend
+# copies run out of room (measured: see deploy/README.md).
+read -r CPUS MEMORY < <(colima list --json | python3 -c \
+  'import json,sys; d=json.loads(sys.stdin.readline()); print(d["cpus"], d["memory"])')
+if (( CPUS < 4 || MEMORY < 4 * 1024 * 1024 * 1024 )); then
+  echo "Warning: Colima has $CPUS CPUs and $(( MEMORY / 1024 / 1024 )) MB; 4 CPUs and 4 GB are needed." >&2
+  echo "         colima stop && deploy/local-up.sh   starts it with that size." >&2
+fi
 
 step "Kubernetes cluster '$CLUSTER'"
 if ! kind get clusters | grep -qx "$CLUSTER"; then
@@ -33,10 +41,17 @@ fi
 
 # Every build is named after its git version: the newest tag and commit,
 # e.g. v1.2.0-3-g6e67b74, or just the commit while there is no tag.
-# Uncommitted changes get "-dirty-<time>", so every local build is a new
-# version that Kubernetes rolls out (and can roll back).
-VERSION="$(git describe --tags --always --dirty)"
-[[ "$VERSION" == *-dirty ]] && VERSION="$VERSION-$(date +%Y%m%d%H%M%S)"
+# Uncommitted or new (untracked) files get "-dirty-<time>", so every local
+# build of changed code is a new version that Kubernetes rolls out (and can
+# roll back). git describe --dirty alone would miss new files.
+VERSION="$(git describe --tags --always)"
+if [[ -n "$(git status --porcelain)" ]]; then
+  VERSION="$VERSION-dirty-$(date +%Y%m%d%H%M%S)"
+fi
+# Docker tags allow letters, digits, "_", "." and "-", at most 128 of them
+# (a tag like release/1.0 becomes release-1.0).
+VERSION="${VERSION//[^A-Za-z0-9_.-]/-}"
+VERSION="${VERSION:0:128}"
 
 step "Images, version $VERSION"
 for part in backend frontend; do
@@ -74,14 +89,20 @@ step "Deploy"
 # A finished Job cannot be changed; remove it so it is created (and the
 # idempotent menu import run) again.
 kubectl -n "$NS" delete job menu-import --ignore-not-found >/dev/null
-kubectl kustomize deploy/k8s | with_version | kubectl apply -f -
+rendered="$(kubectl kustomize deploy/k8s | with_version)"
+if grep -qE 'image: stecker-[a-z]+:dev$' <<<"$rendered"; then
+  echo "An image still has the placeholder tag dev; nothing was deployed." >&2
+  exit 1
+fi
+kubectl apply -f - <<<"$rendered"
 # Written into the rollout history: kubectl -n stecker rollout history deployment/backend
 kubectl -n "$NS" annotate deployment/backend deployment/frontend --overwrite \
   kubernetes.io/change-cause="version $VERSION" >/dev/null
 kubectl -n "$NS" rollout status statefulset/postgres --timeout=180s
 kubectl -n "$NS" rollout status deployment/backend --timeout=300s
 kubectl -n "$NS" rollout status deployment/frontend --timeout=120s
-kubectl -n "$NS" wait --for=condition=complete job/menu-import --timeout=300s
+# The import job gives up by itself after 10 minutes (activeDeadlineSeconds).
+kubectl -n "$NS" wait --for=condition=complete job/menu-import --timeout=620s
 
 if $DEMO; then
   step "Demo data: simulated order year, then the forecast"

@@ -1,0 +1,21 @@
+# Only nginx (the frontend) may call the backend's web port 8080. Health
+# checks from the node (kubelet) are always allowed by Kubernetes.
+# Together with nginx replacing X-Forwarded-For, nothing else in the cluster
+# can send requests with a made-up guest address. The jobs talk to
+# PostgreSQL or to the frontend, never to this port.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-only-from-frontend
+spec:
+  podSelector:
+    matchLabels: {app: backend}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app: frontend}
+      ports:
+        - {protocol: TCP, port: 8080}
+    # The management port (8081) only serves the health checks; it is not
+    # listed here, so only the node can reach it.

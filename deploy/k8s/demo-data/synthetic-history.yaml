@@ -1,7 +1,7 @@
 # Optional: the simulated order year (1 Nov 2025 - 31 Oct 2026) and real
 # Bremen context data, so the planning page has something to show.
-# Every order is marked SYNTHETIC. Run with:
-#   kubectl apply -n stecker -f deploy/k8s/demo-data/synthetic-history.yaml
+# Every order is marked SYNTHETIC. Run with:  deploy/local-up.sh --demo-data
+# (it fills in the image version for the placeholder tag "dev").
 apiVersion: batch/v1
 kind: Job
 metadata:

@@ -1,5 +1,8 @@
 // Load test: the traffic of 10,000 guests on the website at the same time.
 //
+// On a laptop, run it inside the cluster: deploy/loadtest/run-in-cluster.sh
+// (from the Mac, the Colima tunnel becomes the bottleneck, see
+// deploy/README.md). Directly with k6, e.g. against a cloud system:
 //   k6 run deploy/loadtest/guests.js                     # 10,000 guests
 //   k6 run -e GUESTS=20000 deploy/loadtest/guests.js     # other numbers
 //   k6 run -e BASE_URL=https://staging.example deploy/loadtest/guests.js
@@ -8,11 +11,13 @@
 // k6 cannot hold 10,000 real browsers on a laptop, so it sends the
 // requests those guests would send, at the same rate:
 //   - a visit lasts about 4 minutes, so 10,000 guests = 42 new visits/s;
-//   - each visit loads the page (index.html + script + stylesheet), the
-//     menu and today's recommendations;
+//   - each visit loads the page (index.html and the files it references:
+//     script, stylesheet, hero image), the menu and today's
+//     recommendations: 6 requests;
 //   - 30 % order; a waiting guest checks the order status every 10 s
 //     (frontend Menu.tsx) for about 2 minutes until the waiter confirms.
-// That is about 320 requests per second, held for 3 minutes.
+// That is about 415 requests per second (42 x 6 + 13 orders + 150 status
+// checks), held for 3 minutes after a 1-minute ramp.
 //
 // Orders from the test carry the note "Lasttest (k6)"; delete them with
 // the command in deploy/README.md. Only run this against a test system.
@@ -33,8 +38,9 @@ const ordersPerSecond = visitsPerSecond * ORDER_SHARE;
 const pollsPerSecond = (ordersPerSecond * WAIT_SECONDS) / POLL_SECONDS;
 
 // Enough virtual users to keep the rate even if answers take 10 s (while
-// a new copy starts, single answers took up to 8 s). Requests k6 could not
-// send are counted (dropped_iterations) and fail the test, so a slow
+// a new copy starts, single answers took up to 8 s). Iterations (a page
+// visit, a menu load, an order, a status check) that k6 could not start in
+// time are counted (dropped_iterations) and fail the test, so a slow
 // system cannot hide behind a lower rate.
 const WORST_SECONDS = 10;
 

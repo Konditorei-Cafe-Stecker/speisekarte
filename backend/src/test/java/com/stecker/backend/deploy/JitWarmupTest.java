@@ -8,9 +8,8 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/** The warm-up runs against the real port and writes nothing. */
+/** The warm-up runs against the real port, gets the expected answers and writes nothing. */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT,
         properties = "stecker.warmup.requests=20")
 @ActiveProfiles("test")
@@ -20,11 +19,17 @@ class JitWarmupTest {
     @Autowired private CustomerOrderRepository orders;
 
     @Test
-    void warmsUpWithoutCreatingOrders() throws Exception {
-        assertNotNull(warmup);  // it ran at startup and the app still started
+    void sendsGuestRequestsThatAllGetTheExpectedAnswer() throws Exception {
+        JitWarmup.Result result = warmup.warmUp();
 
+        assertEquals(0, result.failedToConnect(), "requests that could not be sent");
+        assertEquals(0, result.unexpectedStatus(), "menu 200, unknown order 404, empty order 400");
+    }
+
+    @Test
+    void createsNoOrders() throws Exception {
         long before = orders.count();  // other tests share the in-memory database
-        warmup.run(null);
+        warmup.warmUp();
         assertEquals(before, orders.count());
     }
 }

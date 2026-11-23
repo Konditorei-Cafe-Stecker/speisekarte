@@ -38,21 +38,26 @@ public class ContextUpdateJob implements ApplicationRunner {
         this.context = context;
     }
 
+    /** Updates once, then stops the app with the exit code of {@link #runOnce()}. */
     @Override
     public void run(ApplicationArguments args) {
-        int exitCode = 0;
+        int code = runOnce();
+        System.exit(SpringApplication.exit(context, () -> code));
+    }
+
+    /** The update itself: 0 when it worked, 1 when it failed (logged with its cause). */
+    int runOnce() {
         try {
             ContextUpdateService.UpdateSummary summary = updateService.update();
             log.info("Context update (job): {} weather hours {} – {}, {} Werder home matches{}",
                     summary.weatherHours(), summary.weatherFrom(), summary.weatherTo(),
                     summary.matches(),
                     summary.importedFiles() ? ", imported the context files first" : "");
-            events.publishEvent(new ContextUpdatedEvent("job"));
         } catch (RuntimeException error) {
-            log.error("Context update (job) failed: {}", error.getMessage());
-            exitCode = 1;
+            log.error("Context update (job) failed", error);
+            return 1;
         }
-        int code = exitCode;
-        System.exit(SpringApplication.exit(context, () -> code));
+        events.publishEvent(new ContextUpdatedEvent("job"));
+        return 0;
     }
 }

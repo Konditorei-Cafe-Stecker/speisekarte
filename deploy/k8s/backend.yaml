@@ -36,7 +36,8 @@ metadata:
   name: backend
   labels: {app: backend}
 spec:
-  replicas: 2
+  # No "replicas" here: the autoscaler below decides (2-3). A fixed number
+  # would reset the autoscaled count on every deploy, even during a rush.
   strategy:
     rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
   selector:
@@ -68,6 +69,10 @@ spec:
             # (200 threads pushed copies over the memory limit). Requests
             # beyond 50 queue in nginx and Tomcat instead.
             - "--server.tomcat.threads.max=50"
+            # Health checks on their own port and threads, so a busy copy
+            # still answers Kubernetes (only the probes use port 8081; no
+            # service exposes it).
+            - "--management.server.port=8081"
           env:
             - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres:5432/stecker"}
             - {name: SPRING_DATASOURCE_USERNAME, value: stecker_app}
@@ -81,24 +86,27 @@ spec:
               valueFrom: {secretKeyRef: {name: stecker-admin, key: password, optional: true}}
           ports:
             - {name: http, containerPort: 8080}
+            - {name: management, containerPort: 8081}
           startupProbe:
-            httpGet: {path: /actuator/health/liveness, port: http}
+            httpGet: {path: /actuator/health/liveness, port: management}
             periodSeconds: 5
             failureThreshold: 36        # up to 3 minutes for a cold start
           livenessProbe:
-            httpGet: {path: /actuator/health/liveness, port: http}
+            httpGet: {path: /actuator/health/liveness, port: management}
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 6         # a busy minute is no reason to restart
           readinessProbe:
-            httpGet: {path: /actuator/health/readiness, port: http}
+            httpGet: {path: /actuator/health/readiness, port: management}
             periodSeconds: 5
             timeoutSeconds: 3
           lifecycle:
-            # Give the service a moment to stop sending traffic before
-            # Spring's graceful shutdown starts.
+            # Keep serving while the copy disappears from DNS and nginx
+            # notices (nginx looks up the copies every 5 s), then Spring's
+            # graceful shutdown finishes the running requests (20 s max;
+            # terminationGracePeriodSeconds 40 covers both).
             preStop:
-              sleep: {seconds: 5}
+              sleep: {seconds: 15}
           resources:
             requests: {cpu: 250m, memory: 512Mi}
             limits: {memory: 768Mi}

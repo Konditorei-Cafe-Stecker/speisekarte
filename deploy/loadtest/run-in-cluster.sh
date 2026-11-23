@@ -21,7 +21,9 @@ K6_IMAGE=stecker-k6:$K6_VERSION
 # single-platform image, like our own.
 echo "FROM grafana/k6:$K6_VERSION" | docker build -q -t "$K6_IMAGE" - >/dev/null
 kind load docker-image --name stecker "$K6_IMAGE" >/dev/null
-kubectl -n "$NS" delete job loadtest --ignore-not-found >/dev/null
+# Remove the previous run and its pod completely, so nothing below picks up
+# the old pod.
+kubectl -n "$NS" delete job loadtest --ignore-not-found --cascade=foreground --wait >/dev/null
 kubectl -n "$NS" create configmap loadtest-script --from-file=guests.js \
   --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 
@@ -55,13 +57,30 @@ spec:
           configMap: {name: loadtest-script}
 JOB
 
-# The job creates its pod a moment later; wait until it runs.
-for _ in $(seq 1 90); do
-  kubectl -n "$NS" get pod -l job-name=loadtest -o name 2>/dev/null | grep -q . && break
+# The job creates its pod a moment later. Wait until k6 runs or has already
+# ended (it ends within a second when, for example, the website is down;
+# then there is no "ready" state to wait for, only its log to show).
+phase=""
+for _ in $(seq 1 120); do
+  phase="$(kubectl -n "$NS" get pod -l job-name=loadtest \
+    -o jsonpath='{.items[0].status.phase}' 2>/dev/null || true)"
+  [[ "$phase" =~ ^(Running|Succeeded|Failed)$ ]] && break
   sleep 2
 done
-kubectl -n "$NS" wait --for=condition=ready pod -l job-name=loadtest --timeout=180s >/dev/null
+[[ "$phase" =~ ^(Running|Succeeded|Failed)$ ]] \
+  || { echo "The load test pod did not start (phase: ${phase:-none})." >&2; exit 1; }
 kubectl -n "$NS" logs -f job/loadtest
-# k6 exits with an error when a threshold fails; show it.
-kubectl -n "$NS" wait --for=condition=complete job/loadtest --timeout=60s >/dev/null 2>&1 \
-  && echo "Load test passed." || { echo "Load test FAILED (see thresholds above)."; exit 1; }
+
+# k6 exits with an error when a threshold fails; the job then fails too.
+for _ in $(seq 1 30); do
+  succeeded="$(kubectl -n "$NS" get job loadtest -o jsonpath='{.status.succeeded}')"
+  failed="$(kubectl -n "$NS" get job loadtest -o jsonpath='{.status.failed}')"
+  [[ -n "$succeeded$failed" ]] && break
+  sleep 2
+done
+if [[ "$succeeded" == 1 ]]; then
+  echo "Load test passed."
+else
+  echo "Load test FAILED (see above)."
+  exit 1
+fi

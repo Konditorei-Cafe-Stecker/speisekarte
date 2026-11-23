@@ -11,8 +11,19 @@ version = findProperty('appVersion') ?: '0.0.1-SNAPSHOT'
 
 springBoot {
 	// Writes META-INF/build-info.properties (version, build time), which
-	// /actuator/info shows: which version is running in which copy.
-	buildInfo()
+	// /actuator/info shows: which version is running in which copy. The
+	// build time only for image builds: otherwise it changes every build and
+	// Gradle would rerun all tests each time.
+	buildInfo {
+		if (!findProperty('appVersion')) {
+			excludes = ['time']
+		}
+	}
+}
+
+tasks.named('bootJar') {
+	// A fixed name, whatever the version is called (the Dockerfile copies it).
+	archiveFileName = 'backend.jar'
 }
 
 java {

@@ -63,15 +63,15 @@ spec:
                 limits: {memory: 1Gi}
 ---
 # Once after installing: import the real menu (107 products). Safe to run
-# again; existing products are kept. Waits until the backend has created
-# the tables.
+# again; existing products are kept. Waits until the backend (Flyway) has
+# created the menu table, and stops at once on errors waiting cannot fix.
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: menu-import
 spec:
   backoffLimit: 6
-  activeDeadlineSeconds: 600      # fail loudly (e.g. wrong password) instead of waiting forever
+  activeDeadlineSeconds: 600      # give up after 10 minutes instead of waiting forever
   ttlSecondsAfterFinished: 86400
   template:
     spec:
@@ -82,8 +82,20 @@ spec:
           command: ["sh", "-c"]
           args:
             - |
-              until psql -h postgres -U stecker_app -d stecker -tAc "SELECT 1 FROM flyway_schema_history WHERE version = '5'" | grep -q 1; do
-                echo "Waiting for the backend to create the tables ..."; sleep 5
+              # menu_items comes from migration V1; no later one changes it.
+              while :; do
+                if out=$(psql -h postgres -U stecker_app -d stecker -tAc \
+                    "SELECT to_regclass('public.menu_items') IS NOT NULL" 2>&1); then
+                  [ "$out" = t ] && break
+                  echo "Waiting for the backend to create the tables ..."
+                else
+                  case "$out" in
+                    *"password authentication failed"*|*"does not exist"*)
+                      echo "$out" >&2; exit 1 ;;   # wrong password, role or database
+                    *) echo "Waiting for the database: $out" ;;
+                  esac
+                fi
+                sleep 5
               done
               psql -h postgres -U stecker_app -d stecker -v ON_ERROR_STOP=1 -q -f db/stecker_menu_import.sql
           env:

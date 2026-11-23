@@ -1,0 +1,38 @@
+/* A slim strip between the marquee and the Spezialitäten. */
+.today-button-band {
+  padding: clamp(24px, 3vw, 36px) 0;
+  background: var(--surface);
+  text-align: center;
+}
+
+/* position: relative keeps the screen-reader-only text inside it. */
+.today-button {
+  position: relative;
+}
+
+/* A small light that says "today", pulsing gently. */
+.today-button-dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: today-pulse 2.4s ease-out infinite;
+}
+
+@keyframes today-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(217 182 140 / 70%);
+  }
+
+  70%,
+  100% {
+    box-shadow: 0 0 0 8px rgb(217 182 140 / 0%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-button-dot {
+    animation: none;
+  }
+}

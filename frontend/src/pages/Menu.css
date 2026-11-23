@@ -32,6 +32,34 @@
   margin: 18px auto 0;
 }
 
+/* Today's recommendations, above the search and the list */
+.today-picks {
+  margin-bottom: 20px;
+}
+
+.today-picks-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 8px;
+}
+
+.today-picks-head h2 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.today-picks-head p {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
 /* Sticky search and category filter */
 .menu-toolbar {
   position: sticky;

@@ -8,3 +8,6 @@ dist/
 
 # Generated analysis report and charts
 analysis/output/
+
+# Python environment for the analysis scripts
+analysis/.venv/

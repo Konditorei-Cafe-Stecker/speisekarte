@@ -19,6 +19,7 @@ import json
 import sys
 import csv
 import io
+import ssl
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta
@@ -123,9 +124,16 @@ def errors(actual, forecast):
 
 # ---------------------------------------------------------------- upcoming week
 
+try:  # the python.org installer for macOS ships without CA certificates
+    import certifi
+    SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
+except ImportError:
+    SSL_CONTEXT = None
+
+
 def get_json(url):
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=60, context=SSL_CONTEXT) as response:
         return json.load(response)
 
 
@@ -432,6 +440,7 @@ def main():
 
     upcoming_section = "_Skipped (`--no-upcoming`)._"
     publish_note = ""
+    not_published = None
     if not args.no_upcoming:
         try:
             today = datetime.now().astimezone().date()
@@ -557,6 +566,8 @@ The numbers come from a model trained on the
 certain than measurements, especially more than three days ahead.{publish_note}"""
         except urllib.error.URLError as error:  # no internet: keep the rest of the report
             upcoming_section = f"_Could not plan the coming week (no connection?): {error}_"
+            if args.publish:
+                not_published = error
 
     # ---- 5. Report
     synthetic = args.source == "SYNTHETIC"
@@ -627,6 +638,9 @@ That tracking is not built yet.
     path.write_text(report, encoding="utf-8")
     print(f"Wrote {path}", file=sys.stderr)
     print(hourly_scores.to_string(index=False), file=sys.stderr)
+    # A failed --publish must not look like success (the backend runs this daily).
+    if not_published:
+        sys.exit(f"Forecast not published: {not_published}")
 
 
 if __name__ == "__main__":

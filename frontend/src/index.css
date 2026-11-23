@@ -12,7 +12,8 @@
   --on-dark: #f3ede5;
   --on-dark-muted: #d8cdc0;
   --gold: #d9b68c;
-  --logo-blue: #5d829c;
+  /* The navy of the Stecker logo (sampled from the official logo). */
+  --logo-blue: #2b366d;
 
   /* Typography */
   --sans: 'Instrument Sans Variable', system-ui, -apple-system, 'Segoe UI',

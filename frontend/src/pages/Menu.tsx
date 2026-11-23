@@ -7,6 +7,14 @@ import type { OrderLine } from '../components/OrderBar/OrderBar'
 import { fetchMenuItems } from '../api/menu'
 import type { MenuItem } from '../api/menu'
 import { createOrder, fetchOrder, OrderRequestError } from '../api/orders'
+import {
+  fetchTodayRecommendations,
+  formatRecommendationDay,
+  currentRecommendations,
+} from '../api/recommendations'
+import { useBremenNow } from '../components/Recommendations/useBremenNow'
+import type { TodayRecommendations } from '../api/recommendations'
+import RecommendationCards from '../components/Recommendations/RecommendationCards'
 import type { OrderResponse } from '../api/orders'
 import { formatCents, toCents } from '../utils/format'
 import { readSession, removeSession, writeSession } from '../utils/sessionStore'
@@ -200,6 +208,9 @@ function Menu() {
   const [submitting, setSubmitting] = useState(false)
   const [orderError, setOrderError] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  const [today, setToday] = useState<TodayRecommendations | null>(null)
+  const now = useBremenNow()
+  const picks = currentRecommendations(today, now)
   const [completedOrder, setCompletedOrder] = useState<OrderResponse | null>(
     () => readSession(LAST_ORDER_KEY, parseOrder),
   )
@@ -227,6 +238,19 @@ function Menu() {
 
     return () => controller.abort()
   }, [attempt])
+
+  // Today's recommendations. Optional: without them the box stays hidden.
+  useEffect(() => {
+    const controller = new AbortController()
+
+    fetchTodayRecommendations(controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted) setToday(result)
+      })
+      .catch(() => {})
+
+    return () => controller.abort()
+  }, [])
 
   // A link such as /menu#speisen selects a category instead of an anchor,
   // so the page still has to start at the top.
@@ -489,6 +513,23 @@ function Menu() {
           Auswählen, Bestellung prüfen und der Bedienung zeigen.
         </p>
       </header>
+
+      {ready && today && picks.length > 0 && (
+        <section className="today-picks" aria-labelledby="today-picks-title">
+          <div className="today-picks-head">
+            <h2 id="today-picks-title">Heute empfohlen</h2>
+            <p>{formatRecommendationDay(today.day)}</p>
+          </div>
+          <RecommendationCards
+            recommendations={picks}
+            order={{
+              quantities,
+              onAdd: (item) => changeQuantity(item, 1),
+              onRemove: (item) => changeQuantity(item, -1),
+            }}
+          />
+        </section>
+      )}
 
       {!error && (loading || items.length > 0) && (
         <div className="menu-toolbar" ref={toolbarRef}>

@@ -22,8 +22,10 @@ class JitWarmupTest {
     void sendsGuestRequestsThatAllGetTheExpectedAnswer() throws Exception {
         JitWarmup.Result result = warmup.warmUp();
 
-        assertEquals(0, result.failedToConnect(), "requests that could not be sent");
-        assertEquals(0, result.unexpectedStatus(), "menu 200, unknown order 404, empty order 400");
+        // 20 rounds on 2 threads, 3 requests each: menu 200, unknown order 404, empty order 400
+        assertEquals(60, result.expectedAnswers());
+        assertEquals(0, result.noAnswer());
+        assertEquals(0, result.unexpectedStatus());
     }
 
     @Test

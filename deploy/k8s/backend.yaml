@@ -1,4 +1,6 @@
-# Spring Boot backend: 2 to 4 copies behind the "backend" service.
+# Spring Boot backend behind the "backend" service: 2 copies locally (more
+# in a cloud cluster, see maxReplicas below), plus 1 more briefly during an
+# update.
 # Every copy is interchangeable: staff sessions are in PostgreSQL
 # (migration V5), and the daily weather/match update runs as a CronJob
 # (jobs.yaml) instead of inside each copy.
@@ -36,8 +38,9 @@ metadata:
   name: backend
   labels: {app: backend}
 spec:
-  # No "replicas" here: the autoscaler below decides (2-3). A fixed number
-  # would reset the autoscaled count on every deploy, even during a rush.
+  # No "replicas" here: the autoscaler below decides (locally fixed at 2;
+  # raise maxReplicas in a cloud cluster). A fixed number here would reset
+  # the autoscaled count on every deploy, even during a rush.
   strategy:
     rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
   selector:
@@ -69,9 +72,9 @@ spec:
             # (200 threads pushed copies over the memory limit). Requests
             # beyond 50 queue in nginx and Tomcat instead.
             - "--server.tomcat.threads.max=50"
-            # Health checks on their own port and threads, so a busy copy
-            # still answers Kubernetes (only the probes use port 8081; no
-            # service exposes it).
+            # Health checks and version info (/actuator/info) on their own
+            # port and threads, so a busy copy still answers Kubernetes. No
+            # service exposes 8081 and the network policy admits no pod to it.
             - "--management.server.port=8081"
           env:
             - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres:5432/stecker"}
@@ -90,6 +93,10 @@ spec:
           startupProbe:
             httpGet: {path: /actuator/health/liveness, port: management}
             periodSeconds: 5
+            # A copy starting during a rush is slow to answer; with the
+            # default 1 s it was killed half-started (measured) and began
+            # again, wasting the CPU it had already spent.
+            timeoutSeconds: 3
             failureThreshold: 36        # up to 3 minutes for a cold start
           livenessProbe:
             httpGet: {path: /actuator/health/liveness, port: management}
@@ -118,10 +125,12 @@ metadata:
 spec:
   scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: backend}
   minReplicas: 2
-  # 3 fit the local 4-CPU / 4 GB cluster; a 4th Java copy there takes
-  # memory and CPU from the others (measured: the node ran out of memory).
-  # In a cloud cluster raise this with the number of nodes.
-  maxReplicas: 3
+  # Locally 2: the kind cluster is one node with 4 CPUs, and a further Java
+  # copy cannot add CPU there. Measured with 10,000 guests: 2 copies pass,
+  # while starting a 3rd at peak load (over 1 CPU for start and warm-up)
+  # slowed everything down. A new copy only helps where it gets CPUs of
+  # its own: in a cloud cluster raise this with the number of nodes.
+  maxReplicas: 2
   metrics:
     - type: Resource
       resource:

@@ -6,6 +6,7 @@
 #
 # Afterwards the website is on http://localhost:8088.
 # Needs: colima, docker, kind, kubectl  (brew install colima docker kind kubectl)
+#        and python3 (comes with macOS' developer tools)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -20,9 +21,12 @@ step "Docker (Colima)"
 colima status >/dev/null 2>&1 || colima start --cpu 4 --memory 4 --disk 30 --vm-type vz
 # An already running Colima keeps its size. Below 4 CPUs / 4 GB the backend
 # copies run out of room (measured: see deploy/README.md).
-read -r CPUS MEMORY < <(colima list --json | python3 -c \
-  'import json,sys; d=json.loads(sys.stdin.readline()); print(d["cpus"], d["memory"])')
-if (( CPUS < 4 || MEMORY < 4 * 1024 * 1024 * 1024 )); then
+read -r CPUS MEMORY < <(colima list --json 2>/dev/null | python3 -c \
+  'import json,sys; d=json.loads(sys.stdin.readline()); print(d["cpus"], d["memory"])' \
+  2>/dev/null || echo "0 0")
+if (( CPUS == 0 )); then
+  echo "Note: could not read Colima's size; it needs 4 CPUs and 4 GB." >&2
+elif (( CPUS < 4 || MEMORY < 4 * 1024 * 1024 * 1024 )); then
   echo "Warning: Colima has $CPUS CPUs and $(( MEMORY / 1024 / 1024 )) MB; 4 CPUs and 4 GB are needed." >&2
   echo "         colima stop && deploy/local-up.sh   starts it with that size." >&2
 fi
@@ -45,13 +49,14 @@ fi
 # build of changed code is a new version that Kubernetes rolls out (and can
 # roll back). git describe --dirty alone would miss new files.
 VERSION="$(git describe --tags --always)"
+# Docker tags allow letters, digits, "_", "." and "-" (not first), at most
+# 128 of them: a tag like release/1.0 becomes release-1.0.
+VERSION="${VERSION//[^A-Za-z0-9_.-]/-}"
+VERSION="${VERSION#[-.]}"
+VERSION="${VERSION:0:100}"
 if [[ -n "$(git status --porcelain)" ]]; then
   VERSION="$VERSION-dirty-$(date +%Y%m%d%H%M%S)"
 fi
-# Docker tags allow letters, digits, "_", "." and "-", at most 128 of them
-# (a tag like release/1.0 becomes release-1.0).
-VERSION="${VERSION//[^A-Za-z0-9_.-]/-}"
-VERSION="${VERSION:0:128}"
 
 step "Images, version $VERSION"
 for part in backend frontend; do
@@ -101,8 +106,20 @@ kubectl -n "$NS" annotate deployment/backend deployment/frontend --overwrite \
 kubectl -n "$NS" rollout status statefulset/postgres --timeout=180s
 kubectl -n "$NS" rollout status deployment/backend --timeout=300s
 kubectl -n "$NS" rollout status deployment/frontend --timeout=120s
-# The import job gives up by itself after 10 minutes (activeDeadlineSeconds).
-kubectl -n "$NS" wait --for=condition=complete job/menu-import --timeout=620s
+# Wait for the menu import; stop with its log as soon as it fails (e.g. a
+# wrong password). It gives up by itself after 10 minutes.
+for _ in $(seq 1 310); do
+  state="$(kubectl -n "$NS" get job menu-import \
+    -o jsonpath='{.status.conditions[?(@.status=="True")].type}')"
+  [[ "$state" == *Complete* ]] && break
+  if [[ "$state" == *Failed* ]]; then
+    echo "The menu import failed:" >&2
+    kubectl -n "$NS" logs job/menu-import --tail=20 >&2 || true
+    exit 1
+  fi
+  sleep 2
+done
+[[ "$state" == *Complete* ]] || { echo "The menu import did not finish." >&2; exit 1; }
 
 if $DEMO; then
   step "Demo data: simulated order year, then the forecast"

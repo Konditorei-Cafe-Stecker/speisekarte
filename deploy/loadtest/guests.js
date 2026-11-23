@@ -82,7 +82,10 @@ export const options = {
 
 export function setup() {
   const page = http.get(`${BASE}/`);
-  check(page, { 'website reachable': (r) => r.status === 200 });
+  if (page.status !== 200) {
+    throw new Error(`The website at ${BASE} is not reachable `
+      + `(status ${page.status}${page.error ? `: ${page.error}` : ''}).`);
+  }
   const assets = [...page.body.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
 
   const menu = http.get(`${BASE}/api/menu`).json();

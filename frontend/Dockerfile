@@ -18,11 +18,13 @@ LABEL org.opencontainers.image.title="stecker-frontend" \
       org.opencontainers.image.version="$APP_VERSION"
 # Filled into the template at start. Defaults for plain Docker; Kubernetes
 # sets the headless backend service and the cluster DNS. TRUSTED_PROXY_CIDR:
-# the range of an Ingress/load balancer in front of nginx (none by default).
+# the address range(s) of an Ingress/load balancer in front of nginx,
+# separated by spaces or commas (none by default).
 ENV BACKEND_HOST=backend \
     DNS_RESOLVER=127.0.0.11 \
     TRUSTED_PROXY_CIDR=127.0.0.1/32
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY nginx/proxy-headers.inc /etc/nginx/proxy-headers.inc
+COPY --chmod=755 nginx/15-trusted-proxies.sh /docker-entrypoint.d/15-trusted-proxies.sh
 COPY --from=build /src/dist /usr/share/nginx/html
 EXPOSE 8080

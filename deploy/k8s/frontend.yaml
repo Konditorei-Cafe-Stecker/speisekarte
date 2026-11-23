@@ -44,9 +44,10 @@ spec:
             # nginx resolves these itself (no search domains): full names.
             - {name: BACKEND_HOST, value: "backend-pods.$(POD_NAMESPACE).svc.cluster.local"}
             - {name: DNS_RESOLVER, value: kube-dns.kube-system.svc.cluster.local}
-            # Behind an Ingress or L7 load balancer: its address range, so
-            # nginx takes the guest's real address and https from it.
-            # (Guests reach nginx directly here: nothing to trust.)
+            # Behind an Ingress or L7 load balancer: its address range(s),
+            # separated by spaces or commas, so nginx takes the guest's real
+            # address and https from it. (Guests reach nginx directly here:
+            # nothing to trust.)
             - {name: TRUSTED_PROXY_CIDR, value: "127.0.0.1/32"}
           ports:
             - {name: http, containerPort: 8080}

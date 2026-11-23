@@ -1,5 +1,7 @@
 # Only nginx (the frontend) may call the backend's web port 8080. Health
 # checks from the node (kubelet) are always allowed by Kubernetes.
+# Takes effect only where the network plugin enforces network policies
+# (kind's kindnet does; in the cloud see deploy/README.md).
 # Together with nginx replacing X-Forwarded-For, nothing else in the cluster
 # can send requests with a made-up guest address. The jobs talk to
 # PostgreSQL or to the frontend, never to this port.

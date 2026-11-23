@@ -8,6 +8,7 @@ metadata:
   name: context-update
 spec:
   schedule: "15 6 * * *"
+  suspend: false                  # a deploy resumes it if it was paused (see deploy/README.md)
   timeZone: Europe/Berlin
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
@@ -40,6 +41,7 @@ metadata:
   name: forecast-publish
 spec:
   schedule: "45 6 * * *"
+  suspend: false
   timeZone: Europe/Berlin
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
@@ -64,18 +66,23 @@ spec:
 ---
 # Once after installing: import the real menu (107 products). Safe to run
 # again; existing products are kept. Waits until the backend (Flyway) has
-# created the menu table, and stops at once on errors waiting cannot fix.
+# created the menu table. On errors waiting cannot fix (wrong password,
+# role or database) it exits with code 3 and the whole job fails at once.
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: menu-import
 spec:
-  backoffLimit: 6
+  backoffLimit: 6                 # other failures (e.g. a dropped connection) are retried
   activeDeadlineSeconds: 600      # give up after 10 minutes instead of waiting forever
   ttlSecondsAfterFinished: 86400
+  podFailurePolicy:
+    rules:
+      - action: FailJob           # exit code 3: retrying cannot help
+        onExitCodes: {containerName: menu-import, operator: In, values: [3]}
   template:
     spec:
-      restartPolicy: OnFailure
+      restartPolicy: Never
       containers:
         - name: menu-import
           image: stecker-tools
@@ -91,7 +98,7 @@ spec:
                 else
                   case "$out" in
                     *"password authentication failed"*|*"does not exist"*)
-                      echo "$out" >&2; exit 1 ;;   # wrong password, role or database
+                      echo "$out" >&2; exit 3 ;;   # wrong password, role or database
                     *) echo "Waiting for the database: $out" ;;
                   esac
                 fi

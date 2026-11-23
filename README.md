@@ -410,11 +410,13 @@ morning at 06:45.
 ## Running on Kubernetes
 
 For busy times the site can run as several copies in Kubernetes: nginx
-with the website, 2–3 backend copies that scale with the load, PostgreSQL,
-and CronJobs for the daily weather update and the forecast. It is designed
-for 10,000 guests at once; on a laptop the load test comes close but does
-not pass every threshold (results in deploy/README.md). Locally, in a kind
-cluster:
+with the website (2–4 copies), the backend (2 copies locally, more in a
+cloud cluster), PostgreSQL, and CronJobs for the daily weather update and
+the forecast. It is designed for 10,000 guests at once. On a laptop the
+load test meets every latency target with 5,000 guests and holds 10,000
+for about a minute; the full 10,000-guest run needs more CPU than the
+laptop's VM has (results and sizing in deploy/README.md). Locally, in a
+kind cluster:
 
 ```bash
 brew install colima docker docker-buildx kind kubectl k6

@@ -3,6 +3,7 @@
 #
 #   deploy/loadtest/run-in-cluster.sh                       # 10,000 guests
 #   GUESTS=5000 RAMP=20s HOLD=1m deploy/loadtest/run-in-cluster.sh
+#   LOADTEST_BASE_URL=http://other-service deploy/loadtest/run-in-cluster.sh
 #
 # Why not from the Mac? On a laptop, requests to http://localhost:8088
 # travel through Colima's SSH tunnel and docker-proxy into the VM. Under
@@ -27,6 +28,8 @@ kubectl -n "$NS" delete job loadtest --ignore-not-found --cascade=foreground --w
 kubectl -n "$NS" create configmap loadtest-script --from-file=guests.js \
   --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 
+TARGET="${LOADTEST_BASE_URL:-http://frontend.$NS.svc.cluster.local}"
+echo "Load test against $TARGET (${GUESTS:-10000} guests)"
 kubectl -n "$NS" apply -f - <<JOB >/dev/null
 apiVersion: batch/v1
 kind: Job
@@ -43,7 +46,7 @@ spec:
           image: $K6_IMAGE
           args: ["run", "--quiet", "/scripts/guests.js"]
           env:
-            - {name: BASE_URL, value: "http://frontend.$NS.svc.cluster.local"}
+            - {name: BASE_URL, value: "$TARGET"}
             - {name: GUESTS, value: "${GUESTS:-10000}"}
             - {name: RAMP, value: "${RAMP:-1m}"}
             - {name: HOLD, value: "${HOLD:-3m}"}

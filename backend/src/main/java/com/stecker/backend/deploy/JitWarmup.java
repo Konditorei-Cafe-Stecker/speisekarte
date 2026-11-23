@@ -31,8 +31,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * Nothing is written: the status check asks for an unknown order (404) and
  * the order has no items (400), so only reading, JSON and validation run.
- * Any other answer is counted and logged as a warning: then the warm-up
- * did not exercise what it should. It never stops the backend.
+ * Requests without the expected answer (another status, no answer within
+ * 5 s, or not sent at all) are counted and logged as a warning: then the
+ * warm-up did not exercise what it should. It never stops the backend.
  * Off unless {@code stecker.warmup.requests} is above 0 (set in Kubernetes).
  */
 @Component
@@ -42,8 +43,11 @@ public class JitWarmup implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(JitWarmup.class);
     private static final int THREADS = 2;
 
-    /** How the warm-up went: requests that could not be sent, and unexpected answers. */
-    record Result(int failedToConnect, int unexpectedStatus) {
+    /**
+     * How the warm-up went: answers as expected, requests that were not sent
+     * or got no answer in time, and answers with another status.
+     */
+    record Result(int expectedAnswers, int noAnswer, int unexpectedStatus) {
     }
 
     private final Environment environment;
@@ -63,11 +67,12 @@ public class JitWarmup implements ApplicationRunner {
         String port = environment.getProperty("local.server.port");
         if (port == null) {
             log.warn("Warm-up skipped: the web server port is not known.");
-            return new Result(0, 0);
+            return new Result(0, 0, 0);
         }
         String base = "http://127.0.0.1:" + port;
         long started = System.nanoTime();
-        AtomicInteger failedToConnect = new AtomicInteger();
+        AtomicInteger expected = new AtomicInteger();
+        AtomicInteger noAnswer = new AtomicInteger();
         AtomicInteger unexpected = new AtomicInteger();
 
         try (HttpClient client = HttpClient.newBuilder()
@@ -77,27 +82,31 @@ public class JitWarmup implements ApplicationRunner {
             for (int t = 0; t < THREADS; t++) {
                 pool.submit(() -> {
                     for (int i = 0; i < rounds / THREADS; i++) {
-                        send(client, get(base + "/api/menu"), 200, failedToConnect, unexpected);
+                        send(client, get(base + "/api/menu"), 200, expected, noAnswer, unexpected);
                         send(client, get(base + "/api/orders/" + UUID.randomUUID()), 404,
-                                failedToConnect, unexpected);
+                                expected, noAnswer, unexpected);
                         send(client, HttpRequest.newBuilder(URI.create(base + "/api/orders"))
                                 .timeout(Duration.ofSeconds(5))
                                 .header("Content-Type", "application/json")
                                 .POST(HttpRequest.BodyPublishers.ofString("{\"items\":[]}"))
-                                .build(), 400, failedToConnect, unexpected);
+                                .build(), 400, expected, noAnswer, unexpected);
                     }
                 });
             }
             pool.shutdown();
-            pool.awaitTermination(3, TimeUnit.MINUTES);
+            if (!pool.awaitTermination(3, TimeUnit.MINUTES)) {
+                pool.shutdownNow();
+                log.warn("Warm-up stopped after 3 minutes before all rounds were done.");
+            }
         }
 
-        Result result = new Result(failedToConnect.get(), unexpected.get());
+        Result result = new Result(expected.get(), noAnswer.get(), unexpected.get());
         long millis = (System.nanoTime() - started) / 1_000_000;
-        if (result.failedToConnect() > 0 || result.unexpectedStatus() > 0) {
-            log.warn("Warm-up: {} rounds in {} ms, but {} requests failed to connect and {} got "
-                            + "an unexpected answer; the first guests may meet a cold JVM.",
-                    rounds, millis, result.failedToConnect(), result.unexpectedStatus());
+        if (result.noAnswer() > 0 || result.unexpectedStatus() > 0) {
+            log.warn("Warm-up: {} rounds in {} ms, but {} requests were not sent or got no "
+                            + "answer in time and {} got an unexpected answer; the first guests "
+                            + "may meet a cold JVM.",
+                    rounds, millis, result.noAnswer(), result.unexpectedStatus());
         } else {
             log.info("Warm-up: {} rounds of guest requests in {} ms", rounds, millis);
         }
@@ -109,17 +118,16 @@ public class JitWarmup implements ApplicationRunner {
     }
 
     private static void send(HttpClient client, HttpRequest request, int expectedStatus,
-                             AtomicInteger failedToConnect, AtomicInteger unexpected) {
+                             AtomicInteger expected, AtomicInteger noAnswer,
+                             AtomicInteger unexpected) {
         try {
             int status = client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
-            if (status != expectedStatus) {
-                unexpected.incrementAndGet();
-            }
+            (status == expectedStatus ? expected : unexpected).incrementAndGet();
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
-            failedToConnect.incrementAndGet();
-        } catch (Exception error) {
-            failedToConnect.incrementAndGet();
+            noAnswer.incrementAndGet();
+        } catch (Exception notSentOrTimedOut) {
+            noAnswer.incrementAndGet();
         }
     }
 }

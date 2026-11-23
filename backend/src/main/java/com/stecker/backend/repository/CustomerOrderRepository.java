@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +38,14 @@ public interface CustomerOrderRepository
     boolean existsByShortCodeAndStatus(String shortCode, OrderStatus status);
 
     long countByDataSource(DataSource dataSource);
+
+    /** When the first order from one data source was placed (Bremen local time). */
+    @Query("select min(o.createdAt) from CustomerOrder o where o.dataSource = :source")
+    Optional<LocalDateTime> findFirstCreatedAt(@Param("source") DataSource source);
+
+    /** When the latest order from one data source was placed (Bremen local time). */
+    @Query("select max(o.createdAt) from CustomerOrder o where o.dataSource = :source")
+    Optional<LocalDateTime> findLastCreatedAt(@Param("source") DataSource source);
 
     /** Deletes the order lines of all orders from one data source. */
     @Modifying

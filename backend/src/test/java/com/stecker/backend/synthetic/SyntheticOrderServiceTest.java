@@ -18,9 +18,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -91,6 +95,62 @@ class SyntheticOrderServiceTest {
         assertEquals(DataSource.REAL, stillReal.getDataSource());
         assertEquals(OrderStatus.PENDING, stillReal.getStatus());
         assertEquals(1, orderRepository.countByDataSource(DataSource.REAL));
+    }
+
+    @Test
+    void continuesTheHistoryAsOneLongRunWouldHave() {
+        orderService.createOrder(new CreateOrderRequest(List.of(
+                new CreateOrderRequest.OrderItemRequest(menu.get(0).getId(), 1))));
+        SyntheticOrderService.Summary week = syntheticOrderService.generate(START, END, 7L, false);
+
+        // On Thursday 23 April: Monday to Wednesday are added.
+        LocalDate thursday = LocalDate.of(2026, 4, 23);
+        SyntheticOrderService.Continuation added =
+                syntheticOrderService.continueHistory(7L, thursday).orElseThrow();
+
+        assertEquals(LocalDate.of(2026, 4, 20), added.from());
+        assertEquals(LocalDate.of(2026, 4, 22), added.to());
+        assertTrue(added.orders() > 60, "orders: " + added.orders());
+        assertEquals(week.orders() + added.orders(),
+                orderRepository.countByDataSource(DataSource.SYNTHETIC));
+
+        // Nothing more the same day.
+        assertEquals(Optional.empty(), syntheticOrderService.continueHistory(7L, thursday));
+
+        // Exactly the orders of one run over the whole time.
+        Set<UUID> continued = syntheticReferences();
+        syntheticOrderService.generate(START, LocalDate.of(2026, 4, 22), 7L, true);
+        assertEquals(syntheticReferences(), continued);
+        assertEquals(1, orderRepository.countByDataSource(DataSource.REAL));
+    }
+
+    @Test
+    void doesNotStartAHistoryOfItsOwn() {
+        assertEquals(Optional.empty(),
+                syntheticOrderService.continueHistory(7L, LocalDate.of(2026, 4, 23)));
+        assertEquals(0, orderRepository.countByDataSource(DataSource.SYNTHETIC));
+    }
+
+    @Test
+    void endsWithTheLastDayThatHasWeatherUntilClosing() {
+        LocalDate monday = LocalDate.of(2026, 11, 23);
+
+        // 01:00 in Bremen on Monday: all of Sunday is measured.
+        assertEquals(LocalDate.of(2026, 11, 22), SyntheticOrderService.lastCompleteDay(
+                monday, Instant.parse("2026-11-23T00:00:00Z")));
+        // Weather only up to Friday 17:00 (the last opening hour): Friday.
+        assertEquals(LocalDate.of(2026, 11, 20), SyntheticOrderService.lastCompleteDay(
+                monday, Instant.parse("2026-11-20T16:00:00Z")));
+        // Up to Friday 16:00: Friday is incomplete, so Thursday.
+        assertEquals(LocalDate.of(2026, 11, 19), SyntheticOrderService.lastCompleteDay(
+                monday, Instant.parse("2026-11-20T15:00:00Z")));
+    }
+
+    private Set<UUID> syntheticReferences() {
+        return orderRepository.findAll().stream()
+                .filter(o -> o.getDataSource() == DataSource.SYNTHETIC)
+                .map(CustomerOrder::getOrderReference)
+                .collect(Collectors.toSet());
     }
 
     @Test

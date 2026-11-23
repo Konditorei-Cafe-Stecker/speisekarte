@@ -1,0 +1,117 @@
+/* Today's recommendations at the top of the Speisekarte: one slim row of
+   cards that never pushes the menu far down. They scroll sideways when
+   there are more than fit; the next card peeks in to show there is more,
+   and a thin scrollbar lets mouse users reach it. */
+.recommendation-cards {
+  display: flex;
+  gap: 10px;
+  margin: 0 -4px;
+  padding: 4px 4px 8px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  list-style: none;
+}
+
+/* position: relative keeps the screen-reader-only text inside the card
+   (.visually-hidden is absolutely positioned). Without it, that text in a
+   card scrolled out of view widened the whole page on phones.
+   min-width: 0 lets a long one-line description end in "…" instead of
+   widening its card. */
+.recommendation-card {
+  position: relative;
+  display: flex;
+  flex: 0 0 min(330px, 85%);
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px 4px;
+  border: 1px solid var(--border-strong);
+  border-top: 3px solid var(--accent);
+  border-radius: 14px;
+  background: #fff;
+  scroll-snap-align: start;
+}
+
+.recommendation-card--christmas-market {
+  border-top-color: #9b2c1f;
+}
+
+.recommendation-card--match-day {
+  border-top-color: #1d7a46;
+}
+
+.recommendation-card--ice-cream,
+.recommendation-card--breakfast {
+  border-top-color: var(--gold);
+}
+
+.recommendation-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 10px;
+}
+
+.recommendation-card h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+/* "9–12 Uhr", "bis 17 Uhr" */
+.recommendation-window {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.recommendation-products {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recommendation-product {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 1px 0;
+  border-top: 1px solid var(--border);
+}
+
+.recommendation-product-name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* One line for size and description, so variants stay short. */
+.recommendation-product-name small {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recommendation-product-price {
+  color: var(--text-h);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.recommendation-product-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

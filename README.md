@@ -48,6 +48,7 @@ planning page for the owner.
 | `analysis/` | SQL views, quality checks, analysis and forecast scripts |
 | `scripts/` | Download script for the context data |
 | `docs/` | Synthetic data: sources, assumptions, how to run |
+| `deploy/` | Kubernetes manifests, kind cluster, local start/stop scripts, load test (the Dockerfiles are in `backend/`, `frontend/` and `analysis/`) |
 | `README.md` | Project description and local setup |
 
 ## Requirements
@@ -403,7 +404,30 @@ This fetches the real DWD weather forecast and upcoming Werder matches and
 writes the next 7 days into `forecast_days`, `forecast_hours` and
 `forecast_products` (`GET /api/admin/forecast` reads them). Run it once a
 day. Older forecast days are kept, so forecasts can later be compared with
-what happened.
+what happened. On Kubernetes the CronJob `forecast-publish` does this every
+morning at 06:45.
+
+## Running on Kubernetes
+
+For busy times the site can run as several copies in Kubernetes: nginx
+with the website (2–4 copies), the backend (2 copies locally, more in a
+cloud cluster), PostgreSQL, and CronJobs for the daily weather update and
+the forecast. It is designed for 10,000 guests at once. On a laptop the
+load test meets every latency target with 5,000 guests and holds 10,000
+for about a minute; the full 10,000-guest run needs more CPU than the
+laptop's VM has (results and sizing in deploy/README.md). Locally, in a
+kind cluster:
+
+```bash
+brew install colima docker docker-buildx kind kubectl k6
+deploy/local-up.sh --demo-data          # then open http://localhost:8088
+deploy/loadtest/run-in-cluster.sh       # load test with 10,000 guests, inside the cluster
+```
+
+Staff sessions are stored in PostgreSQL (migration V5), so they work
+across copies and survive restarts. Details, the backend changes for
+running several copies and the way to a cloud cluster:
+[deploy/README.md](deploy/README.md).
 
 ## Work split and remaining tasks
 

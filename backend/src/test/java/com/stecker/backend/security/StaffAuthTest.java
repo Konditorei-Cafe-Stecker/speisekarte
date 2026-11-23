@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpSession;
+import jakarta.servlet.http.Cookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -75,8 +75,8 @@ class StaffAuthTest {
                 .andExpect(jsonPath("$.mustChangePassword").value(false))
                 .andReturn();
 
-        MockHttpSession session = session(result);
-        mockMvc.perform(get("/api/auth/me").session(session))
+        Cookie session = session(result);
+        mockMvc.perform(get("/api/auth/me").cookie(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("chefin"));
 
@@ -125,13 +125,13 @@ class StaffAuthTest {
 
     @Test
     void keepsAdminEndpointsForAdmins() throws Exception {
-        MockHttpSession staff = signIn("kellner", STAFF_PASSWORD);
-        mockMvc.perform(get("/api/admin/staff").session(staff))
+        Cookie staff = signIn("kellner", STAFF_PASSWORD);
+        mockMvc.perform(get("/api/admin/staff").cookie(staff))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("Dafür fehlt dir die Berechtigung."));
 
-        MockHttpSession admin = signIn("chefin", ADMIN_PASSWORD);
-        mockMvc.perform(get("/api/admin/staff").session(admin))
+        Cookie admin = signIn("chefin", ADMIN_PASSWORD);
+        mockMvc.perform(get("/api/admin/staff").cookie(admin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].passwordHash").doesNotExist())
@@ -140,8 +140,8 @@ class StaffAuthTest {
 
     @Test
     void newAccountMustChooseItsOwnPasswordFirst() throws Exception {
-        MockHttpSession admin = signIn("chefin", ADMIN_PASSWORD);
-        mockMvc.perform(post("/api/admin/staff").session(admin).with(csrf())
+        Cookie admin = signIn("chefin", ADMIN_PASSWORD);
+        mockMvc.perform(post("/api/admin/staff").cookie(admin).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"username": " Anna.M ", "displayName": "Anna",
@@ -155,14 +155,14 @@ class StaffAuthTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.mustChangePassword").value(true))
                 .andReturn();
-        MockHttpSession anna = session(result);
+        Cookie anna = session(result);
 
-        mockMvc.perform(get("/api/staff/orders").session(anna))
+        mockMvc.perform(get("/api/staff/orders").cookie(anna))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("Bitte lege zuerst ein eigenes Passwort fest."));
 
         // The public site stays usable meanwhile.
-        mockMvc.perform(get("/api/menu").session(anna)).andExpect(status().isOk());
+        mockMvc.perform(get("/api/menu").cookie(anna)).andExpect(status().isOk());
 
         mockMvc.perform(changeOwnPassword(anna, "vorlaeufig-123", "zu-kurz"))
                 .andExpect(status().isBadRequest())
@@ -177,38 +177,38 @@ class StaffAuthTest {
                 .andExpect(jsonPath("$.mustChangePassword").value(false));
 
         // The same session continues, now with access to staff endpoints.
-        mockMvc.perform(get("/api/auth/me").session(anna))
+        mockMvc.perform(get("/api/auth/me").cookie(anna))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.mustChangePassword").value(false));
-        mockMvc.perform(get("/api/staff/orders").session(anna))
+        mockMvc.perform(get("/api/staff/orders").cookie(anna))
                 .andExpect(status().isOk());
     }
 
     @Test
     void deactivatingAnAccountEndsItsSession() throws Exception {
-        MockHttpSession staff = signIn("kellner", STAFF_PASSWORD);
-        MockHttpSession admin = signIn("chefin", ADMIN_PASSWORD);
+        Cookie staff = signIn("kellner", STAFF_PASSWORD);
+        Cookie admin = signIn("chefin", ADMIN_PASSWORD);
 
         mockMvc.perform(updateStaff(admin, staffId, "{\"active\": false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
 
-        mockMvc.perform(get("/api/auth/me").session(staff))
+        mockMvc.perform(get("/api/auth/me").cookie(staff))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void resettingAPasswordEndsSessionsAndRequiresANewOne() throws Exception {
-        MockHttpSession staff = signIn("kellner", STAFF_PASSWORD);
-        MockHttpSession admin = signIn("chefin", ADMIN_PASSWORD);
+        Cookie staff = signIn("kellner", STAFF_PASSWORD);
+        Cookie admin = signIn("chefin", ADMIN_PASSWORD);
 
         mockMvc.perform(post("/api/admin/staff/{id}/password", staffId)
-                        .session(admin).with(csrf())
+                        .cookie(admin).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"temporaryPassword\": \"neu-vorlaeufig-1\"}"))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/auth/me").session(staff))
+        mockMvc.perform(get("/api/auth/me").cookie(staff))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(login("kellner", STAFF_PASSWORD))
                 .andExpect(status().isUnauthorized());
@@ -219,7 +219,7 @@ class StaffAuthTest {
 
     @Test
     void keepsAtLeastOneActiveAdmin() throws Exception {
-        MockHttpSession admin = signIn("chefin", ADMIN_PASSWORD);
+        Cookie admin = signIn("chefin", ADMIN_PASSWORD);
 
         mockMvc.perform(updateStaff(admin, adminId, "{\"active\": false}"))
                 .andExpect(status().isConflict())
@@ -230,7 +230,7 @@ class StaffAuthTest {
         // A second admin may demote the first, but not the last one.
         mockMvc.perform(updateStaff(admin, staffId, "{\"role\": \"ADMIN\"}"))
                 .andExpect(status().isOk());
-        MockHttpSession second = signIn("kellner", STAFF_PASSWORD);
+        Cookie second = signIn("kellner", STAFF_PASSWORD);
         mockMvc.perform(updateStaff(second, adminId, "{\"role\": \"STAFF\"}"))
                 .andExpect(status().isOk());
         mockMvc.perform(updateStaff(second, adminId, "{\"role\": \"ADMIN\"}"))
@@ -242,7 +242,7 @@ class StaffAuthTest {
 
     @Test
     void validatesNewAccounts() throws Exception {
-        MockHttpSession admin = signIn("chefin", ADMIN_PASSWORD);
+        Cookie admin = signIn("chefin", ADMIN_PASSWORD);
 
         mockMvc.perform(createStaff(admin, "kellner", "lang-genug-123"))
                 .andExpect(status().isConflict());
@@ -252,7 +252,7 @@ class StaffAuthTest {
         mockMvc.perform(createStaff(admin, "neu", "kurz"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("Das Passwort muss mindestens 10 Zeichen lang sein."));
-        mockMvc.perform(post("/api/admin/staff").session(admin)
+        mockMvc.perform(post("/api/admin/staff").cookie(admin)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isForbidden());
@@ -277,12 +277,14 @@ class StaffAuthTest {
 
     @Test
     void signsOut() throws Exception {
-        MockHttpSession admin = signIn("chefin", ADMIN_PASSWORD);
+        Cookie admin = signIn("chefin", ADMIN_PASSWORD);
 
-        mockMvc.perform(post("/api/auth/logout").session(admin).with(csrf()))
+        mockMvc.perform(post("/api/auth/logout").cookie(admin).with(csrf()))
                 .andExpect(status().isNoContent());
 
-        assertTrue(admin.isInvalid());
+        // The session is deleted from the database: the old cookie is worthless.
+        mockMvc.perform(get("/api/auth/me").cookie(admin))
+                .andExpect(status().isUnauthorized());
     }
 
     private long save(String username, String displayName, StaffRole role, String password) {
@@ -292,14 +294,14 @@ class StaffAuthTest {
         return repository.save(account).getId();
     }
 
-    private MockHttpSession signIn(String username, String password) throws Exception {
+    private Cookie signIn(String username, String password) throws Exception {
         return session(mockMvc.perform(login(username, password))
                 .andExpect(status().isOk())
                 .andReturn());
     }
 
-    private static MockHttpSession session(MvcResult result) {
-        return (MockHttpSession) result.getRequest().getSession(false);
+    private static Cookie session(MvcResult result) {
+        return sessionCookie(result);
     }
 
     private static org.springframework.test.web.servlet.RequestBuilder login(
@@ -311,26 +313,33 @@ class StaffAuthTest {
     }
 
     private static org.springframework.test.web.servlet.RequestBuilder changeOwnPassword(
-            MockHttpSession session, String current, String next) {
-        return post("/api/auth/password").session(session).with(csrf())
+            Cookie session, String current, String next) {
+        return post("/api/auth/password").cookie(session).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"currentPassword\": \"%s\", \"newPassword\": \"%s\"}"
                         .formatted(current, next));
     }
 
     private static org.springframework.test.web.servlet.RequestBuilder updateStaff(
-            MockHttpSession session, long id, String json) {
-        return patch("/api/admin/staff/{id}", id).session(session).with(csrf())
+            Cookie session, long id, String json) {
+        return patch("/api/admin/staff/{id}", id).cookie(session).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json);
     }
 
     private static org.springframework.test.web.servlet.RequestBuilder createStaff(
-            MockHttpSession session, String username, String password) {
-        return post("/api/admin/staff").session(session).with(csrf())
+            Cookie session, String username, String password) {
+        return post("/api/admin/staff").cookie(session).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"username": "%s", "displayName": "Neu", "role": "STAFF",
                          "temporaryPassword": "%s"}""".formatted(username, password));
+    }
+
+    /** The session cookie the browser would keep after signing in. */
+    private static Cookie sessionCookie(MvcResult result) {
+        Cookie cookie = result.getResponse().getCookie("SESSION");
+        assertNotNull(cookie, "no session cookie after sign-in");
+        return cookie;
     }
 }

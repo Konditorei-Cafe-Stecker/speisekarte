@@ -63,7 +63,18 @@ public class StaffBootstrap implements ApplicationRunner {
             return;
         }
 
-        service.create(new CreateStaffRequest(username, displayName, StaffRole.ADMIN, password));
+        try {
+            service.create(new CreateStaffRequest(username, displayName, StaffRole.ADMIN, password));
+        } catch (RuntimeException error) {
+            // Several backend copies started at once (Kubernetes): another
+            // copy may have created the account a moment earlier.
+            if (repository.count() > 0) {
+                log.info("Das erste Admin-Konto wurde gerade von einer anderen "
+                        + "Backend-Instanz angelegt.");
+                return;
+            }
+            throw error;
+        }
         log.info("Erstes Admin-Konto „{}“ angelegt. Beim ersten Anmelden muss ein neues "
                 + "Passwort gewählt werden.", StaffAccountService.normalizeUsername(username));
     }

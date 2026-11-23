@@ -80,6 +80,10 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/health", "/api/menu",
                                 "/api/recommendations/today").permitAll()
+                        // Kubernetes liveness/readiness probes; only "UP"/"DOWN", no details
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
+                        // Which version runs (build version and time, nothing else)
+                        .requestMatchers(HttpMethod.GET, "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/orders/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()

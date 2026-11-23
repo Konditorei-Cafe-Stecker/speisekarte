@@ -16,8 +16,10 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * After 5 failed sign-ins for one username, or 20 from one network
  * address, within 15 minutes, further attempts are refused until the
- * oldest failure is 15 minutes old. Kept in memory: a restart clears it,
- * which is acceptable for a single café server.
+ * oldest failure is 15 minutes old. Kept in memory: a restart clears it.
+ * With several backend copies each copy counts on its own, so with n
+ * copies up to n times as many attempts get through; still far too few
+ * to guess a password.
  */
 @Component
 public class LoginAttemptLimiter {

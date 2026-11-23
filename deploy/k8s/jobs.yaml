@@ -1,0 +1,110 @@
+# Scheduled work, each run exactly once however many backend copies exist.
+
+# Every morning at 06:15 (Bremen time): measured DWD weather and Werder
+# home matches (the backend's ContextUpdateJob, then it stops).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: context-update
+spec:
+  schedule: "15 6 * * *"
+  suspend: false                  # a deploy resumes it if it was paused (see deploy/README.md)
+  timeZone: Europe/Berlin
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: context-update
+              image: stecker-backend
+              args: ["--spring.profiles.active=context-update-job"]
+              env:
+                - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres:5432/stecker"}
+                - {name: SPRING_DATASOURCE_USERNAME, value: stecker_app}
+                - name: SPRING_DATASOURCE_PASSWORD
+                  valueFrom: {secretKeyRef: {name: stecker-db, key: password}}
+                - {name: SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE, value: "3"}
+              resources:
+                requests: {cpu: 250m, memory: 384Mi}
+                limits: {memory: 768Mi}
+---
+# Every morning at 06:45, after the weather update: publish the forecast
+# for today and the next 6 days (planning page /personal/planung).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: forecast-publish
+spec:
+  schedule: "45 6 * * *"
+  suspend: false
+  timeZone: Europe/Berlin
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: forecast
+              image: stecker-tools
+              command: ["python3", "analysis/forecast_and_offers.py",
+                        "--host", "postgres", "--user", "stecker_app", "--publish"]
+              env:
+                - name: STECKER_DB_PASSWORD
+                  valueFrom: {secretKeyRef: {name: stecker-db, key: password}}
+              resources:
+                requests: {cpu: 250m, memory: 384Mi}
+                limits: {memory: 1Gi}
+---
+# Once after installing: import the real menu (107 products). Safe to run
+# again; existing products are kept. Waits until the backend (Flyway) has
+# created the menu table. On errors waiting cannot fix (wrong password,
+# role or database) it exits with code 3 and the whole job fails at once.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: menu-import
+spec:
+  backoffLimit: 6                 # other failures (e.g. a dropped connection) are retried
+  activeDeadlineSeconds: 600      # give up after 10 minutes instead of waiting forever
+  ttlSecondsAfterFinished: 86400
+  podFailurePolicy:
+    rules:
+      - action: FailJob           # exit code 3: retrying cannot help
+        onExitCodes: {containerName: menu-import, operator: In, values: [3]}
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: menu-import
+          image: stecker-tools
+          command: ["sh", "-c"]
+          args:
+            - |
+              # menu_items comes from migration V1; no later one changes it.
+              while :; do
+                if out=$(psql -h postgres -U stecker_app -d stecker -tAc \
+                    "SELECT to_regclass('public.menu_items') IS NOT NULL" 2>&1); then
+                  [ "$out" = t ] && break
+                  echo "Waiting for the backend to create the tables ..."
+                else
+                  case "$out" in
+                    *"password authentication failed"*|*"does not exist"*)
+                      echo "$out" >&2; exit 3 ;;   # wrong password, role or database
+                    *) echo "Waiting for the database: $out" ;;
+                  esac
+                fi
+                sleep 5
+              done
+              psql -h postgres -U stecker_app -d stecker -v ON_ERROR_STOP=1 -q -f db/stecker_menu_import.sql
+          env:
+            - name: PGPASSWORD
+              valueFrom: {secretKeyRef: {name: stecker-db, key: password}}

@@ -18,10 +18,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.mock.web.MockHttpSession;
+import jakarta.servlet.http.Cookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,6 +34,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** The owner's planning API: admins only, through the real sign-in. */
 @SpringBootTest
@@ -51,7 +53,7 @@ class AdminControllerTest {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private LoginAttemptLimiter limiter;
 
-    private MockHttpSession admin;
+    private Cookie admin;
     private List<MenuItem> menu;
 
     @BeforeEach
@@ -103,15 +105,15 @@ class AdminControllerTest {
         mockMvc.perform(get("/api/admin/forecast"))
                 .andExpect(status().isUnauthorized());
 
-        MockHttpSession waiter = signIn("kellner", "kellner-test-passwort");
-        mockMvc.perform(get("/api/admin/forecast").session(waiter))
+        Cookie waiter = signIn("kellner", "kellner-test-passwort");
+        mockMvc.perform(get("/api/admin/forecast").cookie(waiter))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void returnsRevenueStaffingAndProductNeeds() throws Exception {
         mockMvc.perform(get("/api/admin/forecast")
-                        .session(admin)
+                        .cookie(admin)
                         .param("from", MONDAY.toString())
                         .param("days", "2"))
                 .andExpect(status().isOk())
@@ -138,7 +140,7 @@ class AdminControllerTest {
     @Test
     void staffingAssumptionCanBeChanged() throws Exception {
         mockMvc.perform(get("/api/admin/forecast")
-                        .session(admin)
+                        .cookie(admin)
                         .param("from", MONDAY.toString())
                         .param("days", "1")
                         .param("ordersPerStaffHour", "4")
@@ -151,7 +153,7 @@ class AdminControllerTest {
     @Test
     void explainsWhenNoForecastIsPublished() throws Exception {
         mockMvc.perform(get("/api/admin/forecast")
-                        .session(admin)
+                        .cookie(admin)
                         .param("from", "2030-01-01"))
                 .andExpect(status().isNotFound());
     }
@@ -159,7 +161,7 @@ class AdminControllerTest {
     @Test
     void rejectsUnreasonableSettings() throws Exception {
         mockMvc.perform(get("/api/admin/forecast")
-                        .session(admin)
+                        .cookie(admin)
                         .param("days", "60"))
                 .andExpect(status().isBadRequest());
     }
@@ -171,14 +173,19 @@ class AdminControllerTest {
         staffRepository.save(account);
     }
 
-    private MockHttpSession signIn(String username, String password) throws Exception {
-        return (MockHttpSession) mockMvc.perform(post("/api/auth/login")
+    private Cookie signIn(String username, String password) throws Exception {
+        return sessionCookie(mockMvc.perform(post("/api/auth/login")
                         .param("username", username)
                         .param("password", password)
                         .with(csrf()))
                 .andExpect(status().isOk())
-                .andReturn()
-                .getRequest()
-                .getSession(false);
+                .andReturn());
+    }
+
+    /** The session cookie the browser would keep after signing in. */
+    private static Cookie sessionCookie(MvcResult result) {
+        Cookie cookie = result.getResponse().getCookie("SESSION");
+        assertNotNull(cookie, "no session cookie after sign-in");
+        return cookie;
     }
 }

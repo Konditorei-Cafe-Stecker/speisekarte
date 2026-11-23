@@ -1,0 +1,12 @@
+# Local Kubernetes cluster for Café Stecker (kind = Kubernetes in Docker).
+# The website is published on http://localhost:8088 of this computer.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: stecker
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080   # NodePort of the frontend service
+        hostPort: 8088
+        listenAddress: "127.0.0.1"
+        protocol: TCP

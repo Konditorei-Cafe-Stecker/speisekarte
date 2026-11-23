@@ -1,0 +1,26 @@
+# Optional: the simulated order year (1 Nov 2025 - 31 Oct 2026) and real
+# Bremen context data, so the planning page has something to show.
+# Every order is marked SYNTHETIC. Run with:
+#   kubectl apply -n stecker -f deploy/k8s/demo-data/synthetic-history.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: synthetic-history
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: synthetic-history
+          image: stecker-backend:dev
+          args: ["--spring.profiles.active=synthetic", "--stecker.synthetic.replace=true"]
+          env:
+            - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres:5432/stecker"}
+            - {name: SPRING_DATASOURCE_USERNAME, value: stecker_app}
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: {secretKeyRef: {name: stecker-db, key: password}}
+          resources:
+            requests: {cpu: 500m, memory: 512Mi}
+            limits: {memory: 1Gi}

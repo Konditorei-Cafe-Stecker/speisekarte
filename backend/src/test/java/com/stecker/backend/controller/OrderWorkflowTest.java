@@ -15,7 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpSession;
+import jakarta.servlet.http.Cookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.RequestBuilder;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.matchesPattern;
@@ -31,6 +32,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * The README's order workflow end to end: the guest orders, the waiter
@@ -56,7 +58,7 @@ class OrderWorkflowTest {
     private long cappuccino;
     private long torte;
     private long soldOut;
-    private MockHttpSession waiter;
+    private Cookie waiter;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -76,10 +78,10 @@ class OrderWorkflowTest {
         account.changePassword(account.getPasswordHash(), false, Instant.now().minusSeconds(60));
         staffRepository.save(account);
 
-        waiter = (MockHttpSession) mockMvc.perform(post("/api/auth/login")
+        waiter = sessionCookie(mockMvc.perform(post("/api/auth/login")
                         .param("username", "kellner").param("password", PASSWORD).with(csrf()))
                 .andExpect(status().isOk())
-                .andReturn().getRequest().getSession(false);
+                .andReturn());
     }
 
     @Test
@@ -123,7 +125,7 @@ class OrderWorkflowTest {
         mockMvc.perform(get("/api/staff/orders")).andExpect(status().isUnauthorized());
 
         String reference = order(simpleOrder());
-        mockMvc.perform(post("/api/staff/orders/{ref}/confirm", reference).session(waiter))
+        mockMvc.perform(post("/api/staff/orders/{ref}/confirm", reference).cookie(waiter))
                 .andExpect(status().isForbidden()); // no CSRF token
     }
 
@@ -134,7 +136,7 @@ class OrderWorkflowTest {
                 {"items": [{"menuItemId": %d, "quantity": 1}], "note": "Tisch am Fenster"}"""
                 .formatted(torte));
 
-        mockMvc.perform(get("/api/staff/orders").session(waiter))
+        mockMvc.perform(get("/api/staff/orders").cookie(waiter))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].orderReference").value(first))
@@ -144,12 +146,12 @@ class OrderWorkflowTest {
         String code = JsonPath.read(mockMvc.perform(get("/api/orders/{ref}", second))
                 .andReturn().getResponse().getContentAsString(), "$.shortCode");
 
-        mockMvc.perform(get("/api/staff/orders/code/{code}", " " + code.toLowerCase() + " ").session(waiter))
+        mockMvc.perform(get("/api/staff/orders/code/{code}", " " + code.toLowerCase() + " ").cookie(waiter))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.orderReference").value(second))
                 .andExpect(jsonPath("$.note").value("Tisch am Fenster"));
 
-        mockMvc.perform(get("/api/staff/orders/code/{code}", "QQQQ").session(waiter))
+        mockMvc.perform(get("/api/staff/orders/code/{code}", "QQQQ").cookie(waiter))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail", containsString("QQQQ")));
     }
@@ -187,15 +189,15 @@ class OrderWorkflowTest {
                 .andExpect(jsonPath("$.items.length()").value(2));
 
         // Confirmed orders are no longer open, and cannot change.
-        mockMvc.perform(get("/api/staff/orders").session(waiter))
+        mockMvc.perform(get("/api/staff/orders").cookie(waiter))
                 .andExpect(jsonPath("$.length()").value(0));
-        mockMvc.perform(get("/api/staff/orders?view=today").session(waiter))
+        mockMvc.perform(get("/api/staff/orders?view=today").cookie(waiter))
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].handledBy").value("Kellner Ben"));
         mockMvc.perform(confirm(reference, "{}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Diese Bestellung wurde bereits von Kellner Ben bestätigt."));
-        mockMvc.perform(post("/api/staff/orders/{ref}/cancel", reference).session(waiter).with(csrf()))
+        mockMvc.perform(post("/api/staff/orders/{ref}/cancel", reference).cookie(waiter).with(csrf()))
                 .andExpect(status().isConflict());
     }
 
@@ -203,7 +205,7 @@ class OrderWorkflowTest {
     void confirmsUnchangedWithoutABody() throws Exception {
         String reference = order(simpleOrder());
 
-        mockMvc.perform(post("/api/staff/orders/{ref}/confirm", reference).session(waiter).with(csrf()))
+        mockMvc.perform(post("/api/staff/orders/{ref}/confirm", reference).cookie(waiter).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalPrice").value(11.70));
     }
@@ -231,7 +233,7 @@ class OrderWorkflowTest {
     void waiterCancels() throws Exception {
         String reference = order(simpleOrder());
 
-        mockMvc.perform(post("/api/staff/orders/{ref}/cancel", reference).session(waiter).with(csrf()))
+        mockMvc.perform(post("/api/staff/orders/{ref}/cancel", reference).cookie(waiter).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"))
                 .andExpect(jsonPath("$.handledBy").value("Kellner Ben"));
@@ -261,7 +263,7 @@ class OrderWorkflowTest {
 
     private RequestBuilder confirm(String reference, String json) {
         return post("/api/staff/orders/{ref}/confirm", reference)
-                .session(waiter).with(csrf())
+                .cookie(waiter).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(json);
     }
 
@@ -269,5 +271,12 @@ class OrderWorkflowTest {
         return menuRepository
                 .save(new MenuItem(null, name, null, new BigDecimal(price), "Test", available))
                 .getId();
+    }
+
+    /** The session cookie the browser would keep after signing in. */
+    private static Cookie sessionCookie(MvcResult result) {
+        Cookie cookie = result.getResponse().getCookie("SESSION");
+        assertNotNull(cookie, "no session cookie after sign-in");
+        return cookie;
     }
 }

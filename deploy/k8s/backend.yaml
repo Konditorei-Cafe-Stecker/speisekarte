@@ -1,0 +1,138 @@
+# Spring Boot backend: 2 to 4 copies behind the "backend" service.
+# Every copy is interchangeable: staff sessions are in PostgreSQL
+# (migration V5), and the daily weather/match update runs as a CronJob
+# (jobs.yaml) instead of inside each copy.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  labels: {app: backend}
+spec:
+  selector: {app: backend}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+# The same copies once more, but "headless": DNS returns the address of
+# every ready copy, so nginx can spread single requests over all of them
+# (least busy first) instead of pinning whole connections to one copy.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-pods
+  labels: {app: backend}
+spec:
+  clusterIP: None
+  selector: {app: backend}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels: {app: backend}
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  selector:
+    matchLabels: {app: backend}
+  template:
+    metadata:
+      labels: {app: backend}
+    spec:
+      terminationGracePeriodSeconds: 40
+      initContainers:
+        # Start only once PostgreSQL accepts connections (no crash loop on
+        # a fresh cluster while the database is still starting).
+        - name: wait-for-database
+          image: postgres:17-alpine
+          command: ["sh", "-c", "until pg_isready -h postgres -p 5432 -q; do echo waiting for postgres; sleep 2; done"]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 32Mi}
+      containers:
+        - name: backend
+          image: stecker-backend
+          args:
+            - "--stecker.context.daily-update.enabled=false"
+            # Send 500 rounds of guest requests to itself before reporting
+            # ready, so guests never meet a cold JVM (JitWarmup). Enough for
+            # the JIT to compile the hot code; more costs CPU in a rush.
+            - "--stecker.warmup.requests=500"
+            # With 2 CPUs per copy, more threads only wait and use memory
+            # (200 threads pushed copies over the memory limit). Requests
+            # beyond 50 queue in nginx and Tomcat instead.
+            - "--server.tomcat.threads.max=50"
+          env:
+            - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres:5432/stecker"}
+            - {name: SPRING_DATASOURCE_USERNAME, value: stecker_app}
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: {secretKeyRef: {name: stecker-db, key: password}}
+            # 4 copies x 10 connections stay well below PostgreSQL's 100.
+            - {name: SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE, value: "10"}
+            - name: STECKER_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom: {secretKeyRef: {name: stecker-admin, key: username, optional: true}}
+            - name: STECKER_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom: {secretKeyRef: {name: stecker-admin, key: password, optional: true}}
+          ports:
+            - {name: http, containerPort: 8080}
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 5
+            failureThreshold: 36        # up to 3 minutes for a cold start
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6         # a busy minute is no reason to restart
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 3
+          lifecycle:
+            # Give the service a moment to stop sending traffic before
+            # Spring's graceful shutdown starts.
+            preStop:
+              sleep: {seconds: 5}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {memory: 768Mi}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: backend}
+  minReplicas: 2
+  # 3 fit the local 4-CPU / 4 GB cluster; a 4th Java copy there takes
+  # memory and CPU from the others (measured: the node ran out of memory).
+  # In a cloud cluster raise this with the number of nodes.
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: {type: Utilization, averageUtilization: 70}
+  behavior:
+    scaleUp:
+      # One new copy per minute: every start costs CPU (Java start and
+      # warm-up) exactly when the copies are busy.
+      policies:
+        - {type: Pods, value: 1, periodSeconds: 60}
+    scaleDown:
+      stabilizationWindowSeconds: 300   # no flapping after a rush
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app: backend}

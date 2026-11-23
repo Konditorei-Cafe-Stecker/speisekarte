@@ -1,0 +1,79 @@
+# nginx for the Café Stecker website (runs unprivileged on port 8080).
+# A template: ${BACKEND_HOST} and ${DNS_RESOLVER} are filled in from the
+# environment when the container starts (see frontend/Dockerfile and
+# deploy/k8s/frontend.yaml).
+
+# Look up the backend copies again every 5 seconds, so copies added or
+# removed by the autoscaler get traffic within seconds.
+resolver ${DNS_RESOLVER} valid=5s ipv6=off;
+
+# The menu is the same for every guest: keep it for 60 seconds.
+proxy_cache_path /tmp/nginx-menu-cache keys_zone=menu:1m max_size=10m inactive=10m;
+
+log_format upstream '$remote_addr "$request" $status $body_bytes_sent '
+                    'upstream=$upstream_addr time=$request_time upstream_time=$upstream_response_time';
+
+upstream backend {
+    zone backend 64k;
+    # Each request goes to the copy with the fewest open requests. With a
+    # headless service every ready copy is its own entry (not one service
+    # address that kube-proxy pins per connection).
+    least_conn;
+    server ${BACKEND_HOST}:8080 resolve;
+    keepalive 16;
+    keepalive_timeout 30s;   # below Tomcat's 60 s, so nginx closes first
+}
+
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    access_log /dev/stdout upstream;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # Health check for Kubernetes.
+    location = /nginx-health {
+        access_log off;
+        return 200 "ok\n";
+    }
+
+    location = /api/menu {
+        proxy_pass http://backend;
+        include /etc/nginx/proxy-headers.inc;
+        proxy_cache menu;
+        # One cache entry, whatever query string a client adds.
+        proxy_cache_key $scheme$proxy_host$uri;
+        proxy_cache_valid 200 60s;
+        # Spring Security adds the CSRF cookie to every answer. The menu
+        # needs none (guests send orders without it, staff fetch it from
+        # /api/auth/csrf), and a cached cookie must never reach others.
+        # The backend's Cache-Control is meant for browsers (30 s).
+        proxy_ignore_headers Set-Cookie Cache-Control Expires;
+        proxy_hide_header Set-Cookie;
+        proxy_cache_lock on;                       # one request refreshes, the rest wait
+        proxy_cache_use_stale updating error timeout http_502 http_503;
+        add_header X-Cache $upstream_cache_status always;
+    }
+
+    location /api/ {
+        proxy_pass http://backend;
+        include /etc/nginx/proxy-headers.inc;
+        client_max_body_size 64k;
+    }
+
+    # Built files have a content hash in their name: cache them for a year.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # Everything else is the single-page app (React Router decides).
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /index.html;
+    }
+}

@@ -1,0 +1,91 @@
+# Scheduled work, each run exactly once however many backend copies exist.
+
+# Every morning at 06:15 (Bremen time): measured DWD weather and Werder
+# home matches (the backend's ContextUpdateJob, then it stops).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: context-update
+spec:
+  schedule: "15 6 * * *"
+  timeZone: Europe/Berlin
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: context-update
+              image: stecker-backend
+              args: ["--spring.profiles.active=context-update-job"]
+              env:
+                - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres:5432/stecker"}
+                - {name: SPRING_DATASOURCE_USERNAME, value: stecker_app}
+                - name: SPRING_DATASOURCE_PASSWORD
+                  valueFrom: {secretKeyRef: {name: stecker-db, key: password}}
+                - {name: SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE, value: "3"}
+              resources:
+                requests: {cpu: 250m, memory: 384Mi}
+                limits: {memory: 768Mi}
+---
+# Every morning at 06:45, after the weather update: publish the forecast
+# for today and the next 6 days (planning page /personal/planung).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: forecast-publish
+spec:
+  schedule: "45 6 * * *"
+  timeZone: Europe/Berlin
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: forecast
+              image: stecker-tools
+              command: ["python3", "analysis/forecast_and_offers.py",
+                        "--host", "postgres", "--user", "stecker_app", "--publish"]
+              env:
+                - name: STECKER_DB_PASSWORD
+                  valueFrom: {secretKeyRef: {name: stecker-db, key: password}}
+              resources:
+                requests: {cpu: 250m, memory: 384Mi}
+                limits: {memory: 1Gi}
+---
+# Once after installing: import the real menu (107 products). Safe to run
+# again; existing products are kept. Waits until the backend has created
+# the tables.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: menu-import
+spec:
+  backoffLimit: 6
+  activeDeadlineSeconds: 600      # fail loudly (e.g. wrong password) instead of waiting forever
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: menu-import
+          image: stecker-tools
+          command: ["sh", "-c"]
+          args:
+            - |
+              until psql -h postgres -U stecker_app -d stecker -tAc "SELECT 1 FROM flyway_schema_history WHERE version = '5'" | grep -q 1; do
+                echo "Waiting for the backend to create the tables ..."; sleep 5
+              done
+              psql -h postgres -U stecker_app -d stecker -v ON_ERROR_STOP=1 -q -f db/stecker_menu_import.sql
+          env:
+            - name: PGPASSWORD
+              valueFrom: {secretKeyRef: {name: stecker-db, key: password}}

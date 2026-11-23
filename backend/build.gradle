@@ -5,7 +5,15 @@ plugins {
 }
 
 group = 'com.stecker'
-version = '0.0.1-SNAPSHOT'
+// The release version. The image build passes it from git
+// (-PappVersion=<git describe>); otherwise a development version.
+version = findProperty('appVersion') ?: '0.0.1-SNAPSHOT'
+
+springBoot {
+	// Writes META-INF/build-info.properties (version, build time), which
+	// /actuator/info shows: which version is running in which copy.
+	buildInfo()
+}
 
 java {
 	toolchain {
@@ -26,6 +34,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+	// Health checks for Kubernetes (liveness/readiness probes).
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	// Staff sign-in sessions in PostgreSQL, so every backend copy knows them.
+	implementation 'org.springframework.boot:spring-boot-starter-session-jdbc'
 	runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 	runtimeOnly 'org.postgresql:postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'

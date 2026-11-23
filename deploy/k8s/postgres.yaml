@@ -1,0 +1,85 @@
+# PostgreSQL 17 for the café. One copy with its own disk (PersistentVolume).
+# In a cloud cluster a managed database (Cloud SQL, RDS, Azure Database)
+# is the better choice: backups and failover included.
+#
+# Two roles: "postgres" (superuser, only for administration) and
+# "stecker_app" (no special rights, owns the stecker database; the backend
+# and the jobs use it). The init script runs once, on an empty disk.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+data:
+  10-stecker-app.sh: |
+    #!/bin/sh
+    set -eu
+    psql -v ON_ERROR_STOP=1 -v app_password="$STECKER_APP_PASSWORD" \
+         --username "$POSTGRES_USER" --dbname postgres <<'SQL'
+    CREATE ROLE stecker_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD :'app_password';
+    CREATE DATABASE stecker OWNER stecker_app;
+    SQL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels: {app: postgres}
+spec:
+  selector: {app: postgres}
+  ports:
+    - name: postgres
+      port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels: {app: postgres}
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: {app: postgres}
+  template:
+    metadata:
+      labels: {app: postgres}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          args: ["-c", "max_connections=100", "-c", "shared_buffers=128MB"]
+          env:
+            - {name: POSTGRES_USER, value: postgres}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: stecker-db, key: postgres-password}}
+            - name: STECKER_APP_PASSWORD
+              valueFrom: {secretKeyRef: {name: stecker-db, key: password}}
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+          ports:
+            - {name: postgres, containerPort: 5432}
+          readinessProbe:
+            exec: {command: ["pg_isready", "-U", "stecker_app", "-d", "stecker"]}
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec: {command: ["pg_isready", "-U", "stecker_app", "-d", "stecker"]}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6         # never restart the database because of a busy minute
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+            - {name: init, mountPath: /docker-entrypoint-initdb.d}
+      volumes:
+        - name: init
+          configMap: {name: postgres-init}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests: {storage: 2Gi}

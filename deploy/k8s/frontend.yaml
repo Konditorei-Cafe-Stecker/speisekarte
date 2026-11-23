@@ -1,0 +1,81 @@
+# The website: nginx with the built React app. It also forwards /api to
+# the backend service and caches the menu for 60 seconds.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels: {app: frontend}
+spec:
+  # NodePort 30080 is published as http://localhost:8088 by kind
+  # (deploy/kind-cluster.yaml). In a cloud cluster use an Ingress or a
+  # LoadBalancer service instead.
+  type: NodePort
+  # Keep the guest's own address (no source NAT), so the login limit
+  # counts per guest.
+  externalTrafficPolicy: Local
+  selector: {app: frontend}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels: {app: frontend}
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  selector:
+    matchLabels: {app: frontend}
+  template:
+    metadata:
+      labels: {app: frontend}
+    spec:
+      containers:
+        - name: nginx
+          image: stecker-frontend
+          env:
+            # nginx resolves these itself (no search domains): full names.
+            - {name: BACKEND_HOST, value: backend-pods.stecker.svc.cluster.local}
+            - {name: DNS_RESOLVER, value: kube-dns.kube-system.svc.cluster.local}
+          ports:
+            - {name: http, containerPort: 8080}
+          readinessProbe:
+            httpGet: {path: /nginx-health, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /nginx-health, port: http}
+            periodSeconds: 10
+          lifecycle:
+            preStop:
+              sleep: {seconds: 5}
+          resources:
+            requests: {cpu: 100m, memory: 32Mi}
+            limits: {memory: 128Mi}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: frontend}
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: {type: Utilization, averageUtilization: 70}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app: frontend}

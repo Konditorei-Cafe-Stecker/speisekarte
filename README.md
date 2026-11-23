@@ -48,6 +48,7 @@ planning page for the owner.
 | `analysis/` | SQL views, quality checks, analysis and forecast scripts |
 | `scripts/` | Download script for the context data |
 | `docs/` | Synthetic data: sources, assumptions, how to run |
+| `deploy/` | Docker images, Kubernetes manifests, local cluster scripts, load test |
 | `README.md` | Project description and local setup |
 
 ## Requirements
@@ -403,7 +404,26 @@ This fetches the real DWD weather forecast and upcoming Werder matches and
 writes the next 7 days into `forecast_days`, `forecast_hours` and
 `forecast_products` (`GET /api/admin/forecast` reads them). Run it once a
 day. Older forecast days are kept, so forecasts can later be compared with
-what happened.
+what happened. On Kubernetes the CronJob `forecast-publish` does this every
+morning at 06:45.
+
+## Running on Kubernetes
+
+For busy times (10,000 guests at once) the site can run as several copies
+in Kubernetes: nginx with the website, 2–3 backend copies that scale with
+the load, PostgreSQL, and CronJobs for the daily weather update and the
+forecast. Locally, in a kind cluster:
+
+```bash
+brew install colima docker docker-buildx kind kubectl k6
+deploy/local-up.sh --demo-data     # then open http://localhost:8088
+k6 run deploy/loadtest/guests.js   # load test with 10,000 guests
+```
+
+Staff sessions are stored in PostgreSQL (migration V5), so they work
+across copies and survive restarts. Details, the backend changes for
+running several copies and the way to a cloud cluster:
+[deploy/README.md](deploy/README.md).
 
 ## Work split and remaining tasks
 
